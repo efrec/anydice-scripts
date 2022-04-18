@@ -1,0 +1,120 @@
+\
+D&D 5th edition damage baselines with basic class and loadout.
+These baselines are a blend of resource consumption; from zero-cost to single-use abilities. Recommended for visual and
+simple comparisons only, due to breadth of info, without much nuance. Sometimes, survey comparison is best.
+
+Used courtesy of u/Asinus, via r/DnD, with minor syntax fix for moon druids.
+\
+
+\Level 1\
+output 1d12+5 named "Level 1 Barbarian greataxe rage"
+output 1d8+3 named "Level 1 Bard rapier"
+output 4d6+6 named "Level 1 war Cleric maul"
+output 1d8+3 named "Level 1 Druid shillelagh"
+output 2d6+3+1 named "Level 1 gwf Fighter greatsword"
+output 1d8+3+1d4+3 named "Level 1 Monk spear"
+output 1d8+3 named "Level 1 Paladin longsword"
+output 2d6+3 named "Level 1 Ranger shortsword dual wielding"
+output 1d8+3+1d6 named "Level 1 Rogue rapier sneak attack"
+output 1d10 named "Level 1 Sorcerer firebolt"
+output 1d10+1d6+2 named "Level 1 hexblade curse Warlock eldritch blast with hex"
+output 3d4+3 named "Level 1 Wizard magic missile"
+
+\Level 4\
+output 1d12+6 named "Level 4 totem warrior (bear) Barbarian greataxe rage"
+output 2d6+4 named "Level 4 valor Bard greatsword"
+output 4d6+8 named "Level 4 war Cleric maul"
+output 2d6+3 named "Level 4 moon Druid wildshape (dire wolf)"
+output 2d6+4+1+1d8 named "Level 4 gwf battlemaster Fighter greatsword lunging attack"
+output 1d8+4+2d4+8 named "Level 4 open handed Monk spear flurry of blows"
+output 1d8+4+2+2d8 named "Level 4 dueling Paladin of vengeance longsword 1st level smite"
+output 2d6+8+2d6 named "Level 4 twf Ranger shortsword dual wielding hunter’s mark"
+output 1d8+4+2d6+1d8+2d6 named "Level 4 Rogue assassin rapier sneak attack assassinate"
+output 6d6+1d10 named "Level 4 Sorcerer quickened scorching ray and firebolt"
+output 1d10+4+1d6+2 named "Level 4 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 6d6 named "Level 4 Wizard scorching ray"
+
+\Level 5\
+output 2d12+12 named "Level 5 totem warrior (bear) Barbarian greataxe rage"
+output 2d6+4 named "Level 5 valor Bard greatsword"
+output 4d6+8+3d6 named "Level 5 war Cleric maul spirit guardians"
+output 2d6+3 named "Level 5 moon Druid wildshape (dire wolf)"
+output 4d6+8+2+2d8 named "Level 5 gwf battlemaster Fighter greatsword lunging attack"
+output 2d8+8+2d6+8 named "Level 5 open handed Monk spear flurry of blows"
+output 2d8+8+4+6d8 named "Level 5 dueling Paladin of vengeance longsword 2nd level smite"
+output 3d6+12+3d6 named "Level 5 twf Ranger shortsword dual wielding hunter’s mark"
+output 1d8+4+3d6+1d8+3d6 named "Level 5 Rogue assassin rapier sneak attack assassinate"
+output 8d6+2d10 named "Level 5 Sorcerer quickened fireball and firebolt"
+output 2d10+8+2d6+6 named "Level 5 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 8d6 named "Level 5 Wizard fireball"
+
+\Level 10\
+output 2d12+16 named "Level 10 totem warrior (bear) Barbarian greataxe rage"
+output 4d6+10+5d6 named "Level 10 valor Bard greatsword with magic secret (spirit guardians) in 5th level slot"
+output 4d6+10+1d8+5d6 named "Level 10 war Cleric maul divine strike spirit guardians with 5th level slot"
+output 4d6+4 named "Level 10 moon Druid wildshape (giant elk charge ram)"
+output 4d8+4 named "Level 10 moon Druid wildshape (giant elk charge hooves on prone target)"
+output 4d6+10+2+2d10 named "Level 10 gwf battlemaster Fighter greatsword lunging attack"
+output 2d8+10+2d6+10 named "Level 10 open handed Monk spear flurry of blows"
+output 2d8+10+4+8d8+1d8+5+2+3d8 named "Level 10 dueling Paladin of vengeance longsword 3rd level smite and haste with 2nd level"
+output 3d6+15+3d6 named "Level 10 twf Ranger shortsword dual wielding hunter’s mark"
+output 1d8+5+5d6+1d8+5d6 named "Level 10 Rogue assassin rapier sneak attack assassinate"
+output 10d6+5+2d10+5 named "Level 10 draconic Sorcerer quickened fireball with 5th level slot and firebolt"
+output 2d10+10+2d6+8 named "Level 10 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 10d6+5 named "Level 10 evocation Wizard fireball with 5th level slot"
+
+\Level 11\
+output 2d12+16 named "Level 11 totem warrior (bear) Barbarian greataxe rage"
+output 4d6+10+6d6 named "Level 11 valor Bard greatsword with magic secret (spirit guardians) in 6th level slot"
+output 4d6+10+1d8+6d6 named "Level 11 war Cleric maul divine strike spirit guardians with 6th level slot"
+output 2d8+6+5d10 named "Level 11 moon Druid wildshape giant scorpion multiattack and poison"
+output 6d6+15+3+3d10 named "Level 11 gwf battlemaster Fighter greatsword lunging attack"
+output 2d8+10+2d8+10 named "Level 11 open handed Monk flurry of blows"
+output 2d8+10+4+8d8+1d8+5+2+4d8+3d8 named "Level 11 dueling Paladin of vengeance longsword 3rd level smite and haste with improved divine smite"
+output 3d6+15+3d6 named "Level 11 twf Ranger shortsword dual wielding hunter’s mark"
+output 1d8+5+6d6+1d8+6d6 named "Level 11 Rogue assassin rapier sneak attack assassinate"
+output 11d6+5+3d10+5 named "Level 11 draconic Sorcerer quickened fireball with 6th level slot and firebolt"
+output 3d10+15+3d6+12 named "Level 11 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 11d6+5 named "Level 10 evocation Wizard fireball with 6th level slot"
+
+\Level 16\
+output 2d12+18 named "Level 16 totem warrior (bear) Barbarian greataxe rage"
+output 4d6+10+8d6 named "Level 16 valor Bard greatsword with magic secret (spirit guardians) in 8th level slot"
+output 4d6+10+2d8+8d6 named "Level 16 war Cleric maul divine strike spirit guardians with 8th level slot"
+output 3d10+10+2d8 named "Level 16 moon Druid wildshape (giant crocodile)"
+output 6d6+15+3+3d10 named "Level 16 gwf battlemaster Fighter greatsword lunging attack"
+output 2d8+10+2d8+10 named "Level 16 open handed Monk flurry of blows"
+output 2d8+10+4+10d8+1d8+5+2+4d8+3d8 named "Level 16 dueling Paladin of vengeance longsword 4th level smite and haste using 3rd level smite with improved divine smite"
+output 3d6+15+3d6 named "Level 16 twf Ranger shortsword dual wielding hunter’s mark"
+output 1d8+5+8d6+1d8+8d6 named "Level 16 Rogue assassin rapier sneak attack assassinate"
+output 13d6+5+4d10+5 named "Level 16 draconic Sorcerer quickened fireball with 8th level slot and firebolt"
+output 3d10+15+3d6+15 named "Level 16 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 13d6+5 named "Level 16 evocation Wizard fireball with 8th level slot"
+
+\Level 17\
+output 2d12+18 named "Level 17 totem warrior (bear) Barbarian greataxe rage"
+output 4d6+10+9d6 named "Level 17 valor Bard greatsword with magic secret (spirit guardians) in 9th level slot"
+output 4d6+10+2d8+9d6 named "Level 17 war Cleric maul divine strike spirit guardians with 9th level slot"
+output 3d10+5+2d8+5 named "Level 17 moon Druid wildshape (giant crocodile)"
+output 6d6+15+3+3d10 named "Level 17 gwf battlemaster Fighter greatsword lunging attack"
+output 2d10+10+2d10+10 named "Level 17 open handed Monk flurry of blows (alternatively save or die)"
+output 2d8+10+4+11d8+1d8+5+2+5d8+3d8 named "Level 17 dueling Paladin of vengeance longsword 5th level smite then 2nd attack and haste using 4rd level smite with improved divine smite"
+output 3d6+15+3d6 named "Level 17 twf Ranger shortsword dual wielding hunter’s mark"
+output (1d8+5+9d6+1d8+9d6)*2 named "Level 17 Rogue assassin rapier sneak attack assassinate death strike"
+output 40d6+5+4d10+5 named "Level 17 draconic Sorcerer quickened meteor swarm and firebolt"
+output 4d10+20+4d6+24 named "Level 17 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 40d6+5 named "Level 17 evocation Wizard meteor swarm"
+
+\Level 20\
+output 2d12+22 named "Level 20 totem warrior (bear) Barbarian greataxe rage"
+output 40d6+2d6+5+8d6 named "Level 20 valor Bard greatsword with magic secrets (meteor swarm and spirit guardians) in 8th level slot"
+output 4d6+10+2d8+9d6 named "Level 20 war Cleric maul divine strike spirit guardians with 9th level slot"
+output 3d10+5+2d8+5 named "Level 20 moon Druid wildshape (giant crocodile)"
+output 8d6+20+4+4d12 named "Level 20 gwf battlemaster Fighter greatsword lunging attack"
+output 2d10+10+2d10+10 named "Level 20 open handed Monk flurry of blows (alternatively save or die)"
+output 2d8+10+4+12d8+1d8+5+2+5d8+3d8 named "Level 20 dueling Paladin of vengeance longsword 5th level and haste using 4rd level smite with improved divine smite"
+output 3d6+15+3d6+5 named "Level 20 twf Ranger shortsword dual wielding hunter’s mark foe slayer"
+output (1d8+5+10d6+1d8+10d6)*2 named "Level 20 Rogue assassin rapier sneak attack assassinate death strike"
+output 40d6+5+4d10+5 named "Level 20 draconic Sorcerer quickened meteor swarm and firebolt"
+output 4d10+20+4d6+24 named "Level 20 hexblade curse Warlock eldritch blast agonizing blast with hex"
+output 40d6+5 named "Level 20 evocation Wizard meteor swarm"
