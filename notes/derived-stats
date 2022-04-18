@@ -18,7 +18,7 @@ RU: 1
 
 \ Change these to suit your own tests. \
 SING: 3d8
-MULT: 3d6 + 2d20
+MULT: 3d6 + 2d8
 
 
 \
