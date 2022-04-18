@@ -1,0 +1,109 @@
+\
+ADDITIONAL DIE INTROSPECTION
+
+Occasionally, you need to get statistics from anydice other than mean, stdev, min, max.
+Or you do need those values, but they need to be part of your computations. This is a fair
+challenge to us mere, lay hobbyists. I've derived a few useful values below and provided
+tests to prove their results.
+
+(These are my own notes from figuring this out. Hopefully they help someone else to learn.)
+
+I will derive these values on a die of a single die size, SING.
+Then, construct the same expressions on a die containing many die sizes, MULT.
+Finally, I show that the (marginally) more complicated MULT expressions work on SING.
+\
+
+\ Whether to round up (1) or not (0). \
+RU: 1
+
+\ Change these to suit your own tests. \
+SING: 3d8
+MULT: 3d6 + 2d20
+
+
+\
+Showing the basics (https://anydice.com/program/284c7)
+\
+output SING named "SING simulation"
+
+\ Basic introspection, on standard dice, single size. \
+output	#SING				named "SING die count"
+output	{SING}				named "SING support"
+output	1@{SING}			named "SING die count, from support"
+output	#{SING}				named "SING support range"
+output	#{SING}@{SING}			named "SING maximum"
+output	#{SING}@{SING} / #SING		named "SING die size"
+output	(#{SING} + #SING - 1) / #SING	named "SING die size, can be faster to compute"
+output	(#{SING}@{SING}+1@{SING}+RU)/2	named "SING computed average"
+
+
+\
+Testing our basic assumptions on more complex input (https://anydice.com/program/284c8)
+\
+output MULT named "MULT simulation"
+
+\
+Due to computation time limits, we cannot re-derive all die sizes. Ideally, you should keep
+to the AnyDice philosophy, and build an estimated die as the average of all dice. This reduces,
+e.g., rounding errors. But attempting this means we don't know that our computations will complete
+before timing out. Computing integers it is, and so we will test for rounding errors.
+
+Testing, in your case, should require inputting many SING and many MULT, and validating results.
+\
+
+\ Test whether single-size expressions work on multi-size dice. \
+output	#MULT				named "MULT test die count (❌)"
+output	{MULT}				named "MULT test support (✅)"
+output	#{MULT}				named "MULT test support range (✅)"
+output	1@{MULT}			named "MULT test die count, from support (✅)"
+output	#{MULT}@{MULT}			named "MULT test maximum (✅)"
+output	#{MULT}@{MULT} / #MULT		named "MULT test die size (❌)"
+output	(#{MULT} + #MULT - 1) / #MULT	named "MULT test die size, fast (❌)"
+output	(#{MULT}@{MULT}+1@{MULT}+RU)/2	named "MULT test computed average (✅)"
+
+\
+Here is where lazy intuition breaks, and we have to see what AnyDice is actually doing
+in these expressions (actual programming!) when multiple dice are involved.
+
+Our first non-mapping operation (❌) is the die count: #MULT.
+We already have another expression that gave the correct die count: 1@{MULT}
+
+This is because AnyDice expands dice into all their possible outcomes in a {}. Read that
+until it makes sense. This is why the expression for computing the average maps properly:
+(
+  #{MULT}@{MULT}    -- This is a tautology; we ask AnyDice for the max, and so we get it.
+  + 1@{MULT}        -- This is true whenever we use dice whose min value always == 1.
+  + RU              -- AnyDice always rounds numbers to integers. This behavior still works.
+) / 2               -- Half of the max + min is the unweighted mean, aka the average.
+
+Let's retry the others, then, replacing #MULT with 1@{MULT}:
+\
+output	#{MULT}@{MULT} / 1@{MULT}	named "MULT test die size, fix? (❌)"
+output	(#{MULT}+1@{MULT}-1) / 1@{MULT}	named "MULT test die size, fix?, alt (❌)"
+
+\ Close, but AnyDice is rounding our result (by truncation?). So we try again. \
+
+\ We can't make AnyDice not round integers; we can only reverse its downward bias. \
+output	(#{MULT}@{MULT}+1) / 1@{MULT}	named "MULT die size (✅)"
+output	(#{MULT}+1@{MULT}) / 1@{MULT}	named "MULT die size, alt (✅)"
+
+
+\
+Verifying on simple input, aka sanity testing (https://anydice.com/program/284ca)
+\
+output SING named "SING simulation"
+
+\ Test whether multi-size expressions work on single-size dice. \
+output	#{SING}@{SING}			named "SING test maximum (✅)"
+output	(#{SING}@{SING}+1) / 1@{SING}	named "SING test die size (✅)"
+output	(#{SING}+1@{SING}) / 1@{SING}	named "SING test die size, alt (✅)"
+output	(#{SING}@{SING}+1@{SING}+RU)/2	named "SING test computed average (✅)"
+
+
+\ QED. \
+
+
+\
+These expressions are meant to help you build functions; some are useful w/o changes:
+\
+function: max ROLL:d { result: #{ROLL}@{ROLL} }
