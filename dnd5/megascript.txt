@@ -578,7 +578,7 @@ if STAT = 124 {
   if LEVEL <=  1 { result:  0 }
 
   \ Just trust me on this one. I'm super-duper right. \
-  E: N / 7
+  E: LEVEL / 7
   D: 0
   C: 0
   B: 0
@@ -649,3 +649,5 @@ loop LVL over {1..20} {
   VS_AC: [stat 55 at LVL]
   output 1d20 + TOHIT >= VS_AC named "HIT% @[LVL]"
 }
+
+\ output [stat 99 at 5] named "Throw an error for nonexistent stat" \
