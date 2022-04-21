@@ -1,653 +1,1247 @@
-\\\ D&D 5th Edition Mega Script \\\
-\ https://anydice.com/program/284d9 \
-\ Avert your eyes. Ye gods, forgive. Forgive. \
+\\\ D&D 5th Edition Mega Script
+
+The Mega Script handles many more factors than most D&D rollers so you can be confident in your results.
+It is especially focused on the impact of feats, including half feats, on primary & secondary abilities.
+For an AnyDice script, this may seem unusually long and verbose. That is because it is long and verbose.
+
+Try it out: https://anydice.com/program/28638
+
+The script is divided into a few general regions.
+1. Long function declaration for lookups on game statistics, adjusted to the current level (set by [LEVEL]).
+2. Other function declarations, esp. for computing results efficiently in AnyDice.
+3. Variables for game entities needed to create conversant expressions, e.g. "ADV >= CRIT_MIN" is legible to most users.
+4. Variables for the build regimen, updated per-level, in a loop.
+5. Precomputation of results using all of the above, for efficient reuse in the below rather than recomputing results.
+6. Build definitions and output.
+
+When using this as a tool, skip to the build definitions toward the end.
+\\\
 
 
-function: stat STAT:n at LEVEL:n {
-\ Usage: [stat 120 at 5] \
+\\\ BEGIN STATS LOOKUP FUNCTION \\\
 
-LEVEL_MIN:    0
-LEVEL_MAX:   20 \ @todo increase to 30 \
-STAT_MIN:     0
-STAT_MAX:   130
+function: stat STAT:n {
 
-if LEVEL < LEVEL_MIN { result: - 100 }
-if LEVEL > LEVEL_MAX { result: - 200 }
+	\ Stats are indexed to a unique number:
 
-if STAT < STAT_MIN { result: -1000 }
-\     Some gaps in the middle.     \
-if STAT > STAT_MAX { result: -2000 }
+	GENERAL STATISTICS
+	0 - Tier of play, cantrip level, and DPR baseline factor
+	1 - Proficiency bonus
+	2 - Ability score modifier, primary stat
+	3 - Ability score modifier, secondary stat
+	4 - Difficulty class, primary stat
+	5 - Difficulty class, secondary stat
+	6 - Armor class, player character baseline
+	7 - Hit point maximum, player character baseline
+	8 - Max spell slot, full caster
+	9 - Max spell slot, half caster
+	10 - Max spell slot, third caster
+	11 - Basic number of ASIs or Feats (ignoring Fighter, Rogue)
 
-\ Stats are referenced by their index number:
+	12 - RESERVED
+	13 - RESERVED
+	14 - RESERVED
+	15 - RESERVED
+	16 - RESERVED
+	17 - RESERVED
+	18 - RESERVED
+	19 - RESERVED
 
-GENERAL STATISTICS
-  0 - Tier of play, cantrip level, and DPR baseline factor
-  1 - Proficiency bonus
-  2 - Ability score modifier, primary stat
-  3 - Ability score modifier, secondary stat
-  4 - Difficulty class, primary stat
-  5 - Difficulty class, secondary stat
-  6 - Armor class, player character baseline
-  7 - Hit point maximum, player character baseline
-  8 - Max spell slot, full caster
-  9 - Max spell slot, half caster
- 10 - Max spell slot, third caster
- 11 - Typical number of ASIs or Feats
+	@todo
+	20 - Total spell slot levels, full caster
+	21 - Number of spell slots, 1st level, full caster
+	22 - Number of spell slots, 2nd level, full caster
+	23 - Number of spell slots, 3rd level, full caster
+	24 - Number of spell slots, 4th level, full caster
+	25 - Number of spell slots, 5th level, full caster
+	26 - Number of spell slots, 6th level, full caster
+	27 - Number of spell slots, 7th level, full caster
+	28 - Number of spell slots, 8th level, full caster
+	29 - Number of spell slots, 9th level, full caster
 
-GENERAL ENEMY STATISTICS
-\\ Where level is understood to be CR: \\
- 51 - Ability score modifier, primary stat
- 52 - Ability score modifier, secondary stat
- 53 - Difficulty class, primary stat
- 54 - Difficulty class, secondary stat
- 55 - Armor class, monster baseline
- 56 - Hit point maximum, monster baseline
+	30 - Total spell slot levels, half caster
+	31 - Number of spell slots, 1st level, half caster
+	32 - Number of spell slots, 2nd level, half caster
+	33 - Number of spell slots, 3rd level, half caster
+	34 - Number of spell slots, 4th level, half caster
+	35 - Number of spell slots, 5th level, half caster
 
-CLASS RESOURCES AND BONUSES
-100 - Artificer: Infuse Item - Count known
-101 - Artificer: Infuse Item - Highest level {0, 6, 14}
-102 - Artificer: Infuse Item - Count infused items
-103 - Artificer: Magic Item Adept/Savant - Count attuned items
-\\
-104 - Barbarian: Rage - Count uses per day
-105 - Barbarian: Rage - Bonus damage
-106 - Barbarian: Brutal Critical - Additional dice
-\\
-107 - Bard: Bardic Inspiration - Die size
-108 - Bard: Bardic Inspiration - Count max uses per day
-109 - Bard: Song of Rest - Die size
-\\
-110 - Cleric: Channel Divinity - Count uses per day
-111 - Cleric: Divine Intervention - Success chance
-\\
-112 - Druid: Wild Shape - Count uses per day
-113 - Druid: Wild Shape - Maximum CR
-114 - Druid: Wild Shape - Maximum CR (Circle of the Moon)
-\\
-115 - Fighter: Action Surge - Count uses per day
-116 - Fighter: Indomitable - Count uses per day
-\\
-117 - Monk: Martial Arts - Damage die
-118 - Monk: Unarmored Movement - Bonus movement
-\\
-119 - Paladin: Lay on Hands - Hit points per day
-120 - Paladin: Divine Smite - Smite damage die, maximum slot
-121 - Paladin: Improved Divine Smite - Damage die
-\\
-122 - Ranger: Favored Foe - Damage die
-\\
-123 - Rogue: Sneak Attack - Damage die
-\\
-124 - Sorcerer: Font of Magic - Extra slot levels per day
-\\
-125 - Warlock: Pact Magic - Count spell slots
-126 - Warlock: Pact Magic - Spell slot level
-127 - Warlock: Pact Magic, Mystic Arcanum - Count max uses per day
-128 - Warlock: Mystic Arcanum - Count uses per day
-129 - Warlock: Eldritch Invocations - Count invocations known
-\\
-130 - Wizard: Arcane Recovery - Combined spell levels per day
-\
+	36 - Total spell slot levels, third caster
+	37 - Number of spell slots, 1st level, third caster
+	38 - Number of spell slots, 2nd level, third caster
+	39 - Number of spell slots, 3rd level, third caster
+	40 - Number of spell slots, 4th level, third caster
+	41 - Number of spell slots, 5th level, third caster
 
-\ GENERAL STATISTICS \
-if STAT =   0 {
-  if LEVEL >= 17 { result: 4 } \ Tier of play, cantrip scaling \
-  if LEVEL >= 11 { result: 3 }
-  if LEVEL >=  5 { result: 2 }
-  if LEVEL >=  1 { result: 1 }
-  result: 0
-}
-if STAT =   1 {
-  if LEVEL >= 17 { result: 6 } \ Proficiency bonus \
-  if LEVEL >= 13 { result: 5 }
-  if LEVEL >=  9 { result: 4 }
-  if LEVEL >=  5 { result: 3 }
-  if LEVEL >=  1 { result: 2 }
-  result: 0
-}
-if STAT =   2 {
-  if LEVEL >=  8 { result: 5 } \ Primary ability score modifier \
-  if LEVEL >=  4 { result: 4 }
-  if LEVEL >=  1 { result: 3 }
-  result: 3
-}
-if STAT =   3 {
-  if LEVEL >= 19 { result: 5 } \ Secondary ability score modifier \
-  if LEVEL >= 16 { result: 4 }
-  if LEVEL >= 12 { result: 3 }
-  if LEVEL >=  1 { result: 2 }
-  result: 2
-}
-if STAT =   4 {
-  if LEVEL >= 17 { result: 8 + 6 + 5 } \ Primary stat DC \
-  if LEVEL >= 13 { result: 8 + 5 + 5 }
-  if LEVEL >=  9 { result: 8 + 4 + 5 }
-  if LEVEL >=  8 { result: 8 + 3 + 5 }
-  if LEVEL >=  5 { result: 8 + 3 + 4 }
-  if LEVEL >=  4 { result: 8 + 2 + 4 }
-  if LEVEL >=  1 { result: 8 + 2 + 3 }
-  result: 8 + 0 + 3
-}
-if STAT =   5 {
-  if LEVEL >= 19 { result: 8 + 6 + 5 } \ Secondary stat DC \
-  if LEVEL >= 17 { result: 8 + 6 + 4 }
-  if LEVEL >= 16 { result: 8 + 5 + 4 }
-  if LEVEL >= 13 { result: 8 + 5 + 3 }
-  if LEVEL >= 12 { result: 8 + 4 + 3 }
-  if LEVEL >=  9 { result: 8 + 4 + 2 }
-  if LEVEL >=  5 { result: 8 + 3 + 2 }
-  if LEVEL >=  1 { result: 8 + 2 + 2 }
-  result: 8 + 0 + 2
-}
-if STAT =   6 {
-  \ This is a nonsense stat \
-  if LEVEL >= 17 { result: 19 } \ Player baseline AC \
-  if LEVEL >= 13 { result: 18 }
-  if LEVEL >= 11 { result: 17 }
-  if LEVEL >=  8 { result: 16 }
-  if LEVEL >=  4 { result: 15 }
-  if LEVEL >=  1 { result: 14 }
-  result: 10
-}
-if STAT =   7 {
-  result: 7 + 5 * (LEVEL - 1) + 3 * LEVEL \ Player baseline max HP \
-}
-if STAT =   8 {
-  result: (1 + LEVEL) / 2      \ Max spell slot, full caster \
-}
-if STAT =   9 {
-  if LEVEL >= 17 { result: 5 } \ Max spell slot, half caster \
-  if LEVEL >= 13 { result: 4 }
-  if LEVEL >=  9 { result: 3 }
-  if LEVEL >=  5 { result: 2 }
-  if LEVEL >=  2 { result: 1 }
-  result: 0
-}
-if STAT =  10 {
-  if LEVEL >= 19 { result: 4 } \ Max spell slot, third caster \
-  if LEVEL >= 13 { result: 3 }
-  if LEVEL >=  7 { result: 2 }
-  if LEVEL >=  3 { result: 1 }
-  result: 0
-}
-if STAT =  11 {
-  if LEVEL >= 19 { result: 5 } \ Count ASIs + Feats \
-  if LEVEL >= 16 { result: 4 }
-  if LEVEL >= 12 { result: 3 }
-  if LEVEL >=  8 { result: 2 }
-  if LEVEL >=  4 { result: 1 }
-  result: 0
-}
+	42 - RESERVED
+	43 - RESERVED
+	44 - RESERVED
+	45 - RESERVED
+	46 - RESERVED
+	47 - RESERVED
+	48 - RESERVED
+	49 - RESERVED
+
+	GENERAL ENEMY STATISTICS
+	\\ Where level is understood to be CR: \\
+	50 - RESERVED
+
+	51 - Ability score modifier, primary stat
+	52 - Ability score modifier, secondary stat
+	53 - Difficulty class, primary stat
+	54 - Difficulty class, secondary stat
+	55 - Armor class, monster baseline
+	56 - Hit point maximum, monster baseline
+
+	57 - RESERVED
+	58 - RESERVED
+	59 - RESERVED
+
+	60 - Strength saving throw modifier, monster average (an average is NOT a baseline)
+	61 - Dexterity saving throw modifier, monster average
+	62 - Constitution saving throw modifier, monster average
+	63 - Intelligence saving throw modifier, monster average
+	64 - Wisdom saving throw modifier, monster average
+	65 - Charisma saving throw modifier, monster average
+
+	CLASS RESOURCES AND BONUSES
+	100 - Artificer: Infuse Item - Count known \\ Not sure what stats to give for ol arty, honestly \\
+	101 - Artificer: Infuse Item - Highest level {0, 6, 14}
+	102 - Artificer: Infuse Item - Count infused items
+	103 - Artificer: Magic Item Adept/Savant - Count attuned items
+	120 - Barbarian: Rage - Count uses per day
+	121 - Barbarian: Rage - Bonus damage
+	122 - Barbarian: Brutal Critical - Additional dice
+	140 - Bard: Bardic Inspiration - Die size
+	141 - Bard: Bardic Inspiration - Count max uses per day
+	142 - Bard: Song of Rest - Die size
+	160 - Cleric: Channel Divinity - Count uses per day
+	161 - Cleric: Divine Intervention - Success chance
+	180 - Druid: Wild Shape - Count uses per day
+	181 - Druid: Wild Shape - Maximum CR
+	182 - Druid: Wild Shape - Maximum CR (Circle of the Moon)
+	200 - Fighter: Action Surge - Count uses per day
+	201 - Fighter: Indomitable - Count uses per day
+	202 - Fighter: Ability Score Increase - Count extra ASIs
+	220 - Monk: Martial Arts - Damage die
+	221 - Monk: Unarmored Movement - Bonus movement \\ Not much to give for monks \\
+	240 - Paladin: Lay on Hands - Hit points per day
+	241 - Paladin: Divine Smite - Smite damage die, maximum slot
+	242 - Paladin: Improved Divine Smite - Damage die
+	260 - Ranger: Favored Foe - Damage die \\ What do people think? Include the ranger's PHB and UA features? \\
+	280 - Rogue: Sneak Attack - Damage die
+	300 - Sorcerer: Font of Magic - Count maximum total spell slot levels, convert all sorcery points to slots
+	301 - Sorcerer: Font of Magic - Count maximum 1st level spell slots, convert all sorcery points to slots
+	302 - Sorcerer: Font of Magic - Count maximum 2nd level spell slots, convert all sorcery points to slots
+	303 - Sorcerer: Font of Magic - Count maximum 3rd level spell slots, convert all sorcery points to slots
+	304 - Sorcerer: Font of Magic - Count maximum 4th level spell slots, convert all sorcery points to slots
+	305 - Sorcerer: Font of Magic - Count maximum 5th level spell slots, convert all sorcery points to slots
+	306 - Sorcerer: Font of Magic - As 301, but prefer the highest possible slot levels, instead of the max total levels (gives more 3rd-level slots)
+	307 - Sorcerer: Font of Magic - Count maximum 1st level spell slots, convert all sorcery points + all other slots to 1st level
+	308 - Sorcerer: Font of Magic - Count maximum highest-level spell slots (up to 5th level), convert all sorcery points + all other slots to Xth level
+	320 - Warlock: Pact Magic - Count pact spell slots
+	321 - Warlock: Pact Magic - Pact spell slot level
+	322 - Warlock: Pact Magic, Mystic Arcanum - Count max uses per day
+	323 - Warlock: Mystic Arcanum - Count uses per day
+	324 - Warlock: Eldritch Invocations - Count invocations known
+	340 - Wizard: Arcane Recovery - Combined spell levels recovered per day
+
+	SUBCLASS RESOURCES AND BONUSES
+	1000 - Artificer (Subclass Name): Feature Name - Type and description of value
+	1200 - Barbarian (Subclass Name): Feature Name - Type and description of value
+	1400 - Bard (Subclass Name): Feature Name - Type and description of value
+	1600 - Cleric (Subclass Name): Feature Name - Type and description of value
+	1800 - Druid (Subclass Name): Feature Name - Type and description of value
+	2000 - Fighter (Subclass Name): Feature Name - Type and description of value
+	2200 - Monk (Subclass Name): Feature Name - Type and description of value
+	2400 - Paladin (Subclass Name): Feature Name - Type and description of value
+	2600 - Ranger (Subclass Name): Feature Name - Type and description of value
+	2800 - Rogue (Subclass Name): Feature Name - Type and description of value
+	3000 - Sorcerer (Subclass Name): Feature Name - Type and description of value
+	3200 - Warlock (Subclass Name): Feature Name - Type and description of value
+	3400 - Wizard (Subclass Name): Feature Name - Type and description of value
+	\
 
 
-\ ENEMY STATISTICS \
-\ @todo
- 52 - Ability score modifier, secondary stat
- 54 - Difficulty class, secondary stat
- 57 - Saving throw modifier, average
- 58 - Saving throw modifier, strong
- 59 - Saving throw modifier, weak
-\
-if STAT =  51 {
-  if LEVEL <=  1 { result: 1 }
-  if LEVEL <=  3 { result: 2 }
-  if LEVEL <=  8 { result: 3 }
-  if LEVEL <= 16 { result: 4 }
-  if LEVEL <= 24 { result: 5 }
-  result: 6
-}
-if STAT =  52 {}
-if STAT =  53 {
-  if LEVEL <=  0 { result: 11 }
-  if LEVEL <=  3 { result: 13 }
-  if LEVEL  =  4 { result: 14 }
-  if LEVEL <=  7 { result: 15 }
-  if LEVEL <= 10 { result: 16 }
-  if LEVEL <= 12 { result: 17 }
-  if LEVEL <= 16 { result: 18 }
-  if LEVEL <= 20 { result: 19 }
-  if LEVEL <= 23 { result: 20 }
-  result: 22
-}
-if STAT =  54 {}
-if STAT =  55 {
-  if LEVEL <=  1 { result: 11 } \ Monster baseline AC \
-  if LEVEL <=  2 { result: 12 }
-  if LEVEL  =  3 { result: 13 }
-  if LEVEL  =  4 { result: 14 }
-  if LEVEL <=  7 { result: 15 }
-  if LEVEL <=  9 { result: 16 }
-  if LEVEL <= 12 { result: 17 }
-  if LEVEL <= 16 { result: 18 }
-  if LEVEL <= 19 { result: 19 }
-  if LEVEL <= 25 { result: 20 }
-  if LEVEL <= 27 { result: 21 }
-  if LEVEL <= 29 { result: 22 + 1d2 }
-  result: 25
-}
-if STAT =  56 {
-  if LEVEL <=  0 { result: 1d4+1 }
-  if LEVEL <= 20 { result: 15 * LEVEL + 64 }
-  result: 45 * LEVEL - 522
-}
-if STAT =  57 {}
-if STAT =  58 {}
-if STAT =  59 {}
-if STAT =  60 {
-  if LEVEL =  0 { result: 1 - 1d2 } \ Monster baseline save modifier, STR \
-  if LEVEL =  1 { result: 1 }
-  if LEVEL =  2 { result: 1d2 }
-  if LEVEL =  3 { result: 2 }
-  if LEVEL =  4 { result: 2 }
-  if LEVEL =  5 { result: 3 }
-  if LEVEL =  6 { result: 3 }
-  if LEVEL =  7 { result: 3 }
-  if LEVEL =  8 { result: 4 }
-  if LEVEL =  9 { result: 4 }
-  if LEVEL = 10 { result: 4 }
-  if LEVEL = 11 { result: 5 }
-  if LEVEL = 12 { result: 5 }
-  if LEVEL = 13 { result: 5 }
-  if LEVEL = 14 { result: 5 }
-  if LEVEL = 15 { result: 6 }
-  if LEVEL = 16 { result: 7 }
-  if LEVEL = 17 { result: 6 }
-  if LEVEL = 18 { result: 5 }
-  if LEVEL = 19 { result: 6 + 1d2 }
-  if LEVEL = 20 { result: 8 }
-  if LEVEL = 21 { result: 7 }
-  if LEVEL = 22 { result: 7 }
-  if LEVEL = 23 { result: 9 }
-  if LEVEL = 24 { result: 10 }
-  if LEVEL = 25 { result: 11 }
-  if LEVEL = 26 { result: 9 }
-  if LEVEL = 27 { result: 10 }
-  if LEVEL = 28 { result: 9 + 1d2 }
-  if LEVEL = 29 { result: 12 }
-  if LEVEL = 30 { result: 13 + 1d2 }
-}
-if STAT =  61 {
-  if LEVEL =  0 { result: 1 } \ Monster baseline save modifier, DEX \
-  if LEVEL =  1 { result: 1d2 }
-  if LEVEL =  2 { result: 1d2 }
-  if LEVEL =  3 { result: 2 }
-  if LEVEL =  4 { result: 2 }
-  if LEVEL =  5 { result: 2 }
-  if LEVEL =  6 { result: 2 }
-  if LEVEL =  7 { result: 1 + 1d2 }
-  if LEVEL =  8 { result: 2 }
-  if LEVEL =  9 { result: 1 + 1d2 }
-  if LEVEL = 10 { result: 1 + 1d2 }
-  if LEVEL = 11 { result: 3 }
-  if LEVEL = 12 { result: 1 + 1d2 }
-  if LEVEL = 13 { result: 3 }
-  if LEVEL = 14 { result: 3 }
-  if LEVEL = 15 { result: 3 + 1d2 }
-  if LEVEL = 16 { result: 5 }
-  if LEVEL = 17 { result: 6 }
-  if LEVEL = 18 { result: 4 }
-  if LEVEL = 19 { result: 6 }
-  if LEVEL = 20 { result: 5 }
-  if LEVEL = 21 { result: 7 }
-  if LEVEL = 22 { result: 5 }
-  if LEVEL = 23 { result: 7 }
-  if LEVEL = 24 { result: 7 }
-  if LEVEL = 25 { result: 6 }
-  if LEVEL = 26 { result: 6 }
-  if LEVEL = 27 { result: 7 }
-  if LEVEL = 28 { result: 5 }
-  if LEVEL = 29 { result: 7 }
-  if LEVEL = 30 { result: 5 }
-}
-if STAT =  62 {
-  if LEVEL =  0 { result: 0 } \ Monster baseline save modifier, CON \
-  if LEVEL =  1 { result: 1d2 }
-  if LEVEL =  2 { result: 2 }
-  if LEVEL =  3 { result: 2 }
-  if LEVEL =  4 { result: 3 }
-  if LEVEL =  5 { result: 3 }
-  if LEVEL =  6 { result: 3 }
-  if LEVEL =  7 { result: 2 + 1d2 }
-  if LEVEL =  8 { result: 4 }
-  if LEVEL =  9 { result: 4 + 1d2 }
-  if LEVEL = 10 { result: 6 }
-  if LEVEL = 11 { result: 6 }
-  if LEVEL = 12 { result: 4 + 1d2  }
-  if LEVEL = 13 { result: 7 }
-  if LEVEL = 14 { result: 8 }
-  if LEVEL = 15 { result: 7 }
-  if LEVEL = 16 { result: 7 }
-  if LEVEL = 17 { result: 7 + 1d2 }
-  if LEVEL = 18 { result: 10 }
-  if LEVEL = 19 { result: 9 }
-  if LEVEL = 20 { result: 11 + 1d2 }
-  if LEVEL = 21 { result: 12 }
-  if LEVEL = 22 { result: 11 }
-  if LEVEL = 23 { result: 12 }
-  if LEVEL = 24 { result: 13 }
-  if LEVEL = 25 { result: 12 + 1d2 }
-  if LEVEL = 26 { result: 13 }
-  if LEVEL = 27 { result: 13 }
-  if LEVEL = 28 { result: 14 }
-  if LEVEL = 29 { result: 12 }
-  if LEVEL = 30 { result: 10 }
-}
-if STAT =  63 {
-  if LEVEL =  0 { result: -2 } \ Monster baseline save modifier, INT \
-  if LEVEL =  1 { result: -1 }
-  if LEVEL =  2 { result: -1 }
-  if LEVEL =  3 { result: 1 - 1d2 }
-  if LEVEL =  4 { result: 0 }
-  if LEVEL =  5 { result: 0 }
-  if LEVEL =  6 { result: 1 }
-  if LEVEL =  7 { result: 2 - 1d2 }
-  if LEVEL =  8 { result: 0 }
-  if LEVEL =  9 { result: 2 }
-  if LEVEL = 10 { result: 3 }
-  if LEVEL = 11 { result: 2 }
-  if LEVEL = 12 { result: 1 + 1d2 }
-  if LEVEL = 13 { result: 3 + 1d2 }
-  if LEVEL = 14 { result: 3 }
-  if LEVEL = 15 { result: 1 + 1d2 }
-  if LEVEL = 16 { result: 0 + 1d2 }
-  if LEVEL = 17 { result: 4 + 1d2 }
-  if LEVEL = 18 { result: 3 + 1d2 }
-  if LEVEL = 19 { result: 5 }
-  if LEVEL = 20 { result: 1 }
-  if LEVEL = 21 { result: 7 }
-  if LEVEL = 22 { result: 8 }
-  if LEVEL = 23 { result: 6 }
-  if LEVEL = 24 { result: 6 }
-  if LEVEL = 25 { result: 8 }
-  if LEVEL = 26 { result: 12 }
-  if LEVEL = 27 { result: 10 }
-  if LEVEL = 28 { result: 12 }
-  if LEVEL = 29 { result: 10 }
-  if LEVEL = 30 { result: 7 }
-}
-if STAT =  64 {
-  if LEVEL =  0 { result: 1 - 1d2 } \ Monster baseline save modifier, WIS \
-  if LEVEL =  1 { result: 2 - 1d2 }
-  if LEVEL =  2 { result: 1 }
-  if LEVEL =  3 { result: 1 }
-  if LEVEL =  4 { result: 1d2 }
-  if LEVEL =  5 { result: 2 }
-  if LEVEL =  6 { result: 2 }
-  if LEVEL =  7 { result: 2 }
-  if LEVEL =  8 { result: 1 + 1d2 }
-  if LEVEL =  9 { result: 4 }
-  if LEVEL = 10 { result: 3 + 1d2 }
-  if LEVEL = 11 { result: 3 + 1d2 }
-  if LEVEL = 12 { result: 5 }
-  if LEVEL = 13 { result: 5 }
-  if LEVEL = 14 { result: 6 }
-  if LEVEL = 15 { result: 4 + 1d2 }
-  if LEVEL = 16 { result: 7 }
-  if LEVEL = 17 { result: 7 + 1d2 }
-  if LEVEL = 18 { result: 8 }
-  if LEVEL = 19 { result: 7 }
-  if LEVEL = 20 { result: 6 + 1d2 }
-  if LEVEL = 21 { result: 11 }
-  if LEVEL = 22 { result: 11 }
-  if LEVEL = 23 { result: 10 }
-  if LEVEL = 24 { result: 10 + 1d2 }
-  if LEVEL = 25 { result: 11 }
-  if LEVEL = 26 { result: 12}
-  if LEVEL = 27 { result: 13 }
-  if LEVEL = 28 { result: 14 }
-  if LEVEL = 29 { result: 13 }
-  if LEVEL = 30 { result: 13 }
-}
-if STAT =  65 {
-  if LEVEL =  0 { result: -1d2 } \ Monster baseline save modifier, CHA \
-  if LEVEL =  1 { result: 0 }
-  if LEVEL =  2 { result: 0 }
-  if LEVEL =  3 { result: 0 }
-  if LEVEL =  4 { result: 1 }
-  if LEVEL =  5 { result: 1 }
-  if LEVEL =  6 { result: 1 }
-  if LEVEL =  7 { result: 1d2 }
-  if LEVEL =  8 { result: 1 }
-  if LEVEL =  9 { result: 3 }
-  if LEVEL = 10 { result: 1 + 1d2 }
-  if LEVEL = 11 { result: 3 }
-  if LEVEL = 12 { result: 2 + 1d2 }
-  if LEVEL = 13 { result: 4 + 1d2 }
-  if LEVEL = 14 { result: 5 }
-  if LEVEL = 15 { result: 6 }
-  if LEVEL = 16 { result: 5 }
-  if LEVEL = 17 { result: 8 }
-  if LEVEL = 18 { result: 6 + 1d2 }
-  if LEVEL = 19 { result: 9 }
-  if LEVEL = 20 { result: 6 + 1d2 }
-  if LEVEL = 21 { result: 7 + 1d2 }
-  if LEVEL = 22 { result: 9 }
-  if LEVEL = 23 { result: 8 }
-  if LEVEL = 24 { result: 12 }
-  if LEVEL = 25 { result: 8 }
-  if LEVEL = 26 { result: 9 }
-  if LEVEL = 27 { result: 10 }
-  if LEVEL = 28 { result: 15 }
-  if LEVEL = 29 { result: 11 }
-  if LEVEL = 30 { result: 9 }
+	\ GENERAL STATISTICS \
+	if STAT =   0 {
+		if LEVEL >= 17 { result: 4 } \ Tier of play, cantrip scaling \
+		if LEVEL >= 11 { result: 3 }
+		if LEVEL >=  5 { result: 2 }
+		if LEVEL >=  1 { result: 1 }
+		result: 0
+	}
+	if STAT =   1 {
+		if LEVEL >= 17 { result: 6 } \ Proficiency bonus \
+		if LEVEL >= 13 { result: 5 }
+		if LEVEL >=  9 { result: 4 }
+		if LEVEL >=  5 { result: 3 }
+		if LEVEL >=  1 { result: 2 }
+		result: 0
+	}
+	if STAT =   2 {
+		if LEVEL >=  8 { result: 5 } \ Primary ability score modifier \
+		if LEVEL >=  4 { result: 4 }
+		if LEVEL >=  1 { result: 3 }
+		result: 3
+	}
+	if STAT =   3 {
+		if LEVEL >= 19 { result: 5 } \ Secondary ability score modifier \
+		if LEVEL >= 16 { result: 4 }
+		if LEVEL >= 12 { result: 3 }
+		if LEVEL >=  1 { result: 2 }
+		result: 2
+	}
+	if STAT =   4 {
+		if LEVEL >= 17 { result: 8 + 6 + 5 } \ Primary stat DC \
+		if LEVEL >= 13 { result: 8 + 5 + 5 }
+		if LEVEL >=  9 { result: 8 + 4 + 5 }
+		if LEVEL >=  8 { result: 8 + 3 + 5 }
+		if LEVEL >=  5 { result: 8 + 3 + 4 }
+		if LEVEL >=  4 { result: 8 + 2 + 4 }
+		if LEVEL >=  1 { result: 8 + 2 + 3 }
+		result: 8 + 0 + 3
+	}
+	if STAT =   5 {
+		if LEVEL >= 19 { result: 8 + 6 + 5 } \ Secondary stat DC \
+		if LEVEL >= 17 { result: 8 + 6 + 4 }
+		if LEVEL >= 16 { result: 8 + 5 + 4 }
+		if LEVEL >= 13 { result: 8 + 5 + 3 }
+		if LEVEL >= 12 { result: 8 + 4 + 3 }
+		if LEVEL >=  9 { result: 8 + 4 + 2 }
+		if LEVEL >=  5 { result: 8 + 3 + 2 }
+		if LEVEL >=  1 { result: 8 + 2 + 2 }
+		result: 8 + 0 + 2
+	}
+	if STAT =   6 {
+		\ This is a nonsense stat, just do what you will with player AC \
+		if LEVEL >= 17 { result: 19 } \ Player baseline AC \
+		if LEVEL >= 13 { result: 18 }
+		if LEVEL >= 11 { result: 17 }
+		if LEVEL >=  8 { result: 16 }
+		if LEVEL >=  4 { result: 15 }
+		if LEVEL >=  1 { result: 14 }
+		result: 10
+	}
+	if STAT =   7 {
+		result: 7 + 5 * (LEVEL - 1) + 3 * LEVEL \ Player baseline max HP \
+	}
+	if STAT =   8 {
+		if LEVEL >= 17 { result: 9 } \ Max spell slot, full caster \
+		if LEVEL <=  0 { result: 0 }
+		result: (1 + LEVEL) / 2
+	}
+	if STAT =   9 {
+		if LEVEL >= 17 { result: 5 } \ Max spell slot, half caster \
+		if LEVEL >= 13 { result: 4 }
+		if LEVEL >=  9 { result: 3 }
+		if LEVEL >=  5 { result: 2 }
+		if LEVEL >=  2 { result: 1 }
+		result: 0
+	}
+	if STAT =  10 {
+		if LEVEL >= 19 { result: 4 } \ Max spell slot, third caster \
+		if LEVEL >= 13 { result: 3 }
+		if LEVEL >=  7 { result: 2 }
+		if LEVEL >=  3 { result: 1 }
+		result: 0
+	}
+	if STAT =  11 {
+		if LEVEL >= 19 { result: 5 } \ Count ASIs \
+		if LEVEL >= 16 { result: 4 }
+		if LEVEL >= 12 { result: 3 }
+		if LEVEL >=  8 { result: 2 }
+		if LEVEL >=  4 { result: 1 }
+		result: 0
+	}
+	if STAT =  20 {
+		if LEVEL <= 0 { result: 0 } \ Total slot levels, full caster \
+		LEVELS: 0
+		loop N over {1..[stat 8]} { LEVELS: LEVELS + [stat 20+N] }
+		result: LEVELS
+	}
+	if STAT >= 21 & STAT <= 29 {
+		if LEVEL <= 0 { result: 0 }		\ Count (SL)th level slots, full caster \
+		SL: STAT - 20
+		if SL  = 1 { result: 2 * (LEVEL >= 1) + (LEVEL >= 2) + (LEVEL >= 3) }				\ 2 3 4 ... 4 \
+		if SL <= 3 { result: 2 * (LEVEL >= 2*SL - 1) + (LEVEL >= 2*SL) }					\ 2 3 ..... 3 \
+		if SL <= 5 { result: (LEVEL >= 2*SL - 1) + (LEVEL >= 2*SL) + (LEVEL >= 2*SL + 1) }	\ 1 2 3 ... 3 \
+		if SL <= 7 { result: (LEVEL >= 2*SL - 1) + (LEVEL >= SL + 13) }						\ 1 ....... 2 \
+		result: (LEVEL >= 2*SL - 1)															\ 1 ....... 1 \
+	}
+
+
+	\ ENEMY STATISTICS \
+	\ @todo
+	52 - Ability score modifier, secondary stat
+	54 - Difficulty class, secondary stat
+	57 - Saving throw modifier, average
+	58 - Saving throw modifier, strong
+	59 - Saving throw modifier, weak
+	\
+	if STAT =  51 {
+		if LEVEL <=  1 { result: 1 } \ Enemy primary ability score modifier \
+		if LEVEL <=  3 { result: 2 }
+		if LEVEL <=  8 { result: 3 }
+		if LEVEL <= 16 { result: 4 }
+		if LEVEL <= 24 { result: 5 }
+		result: 6
+	}
+	if STAT =  53 {
+		if LEVEL <=  0 { result: 11 } \ Enemy primary DC \
+		if LEVEL <=  3 { result: 13 }
+		if LEVEL  =  4 { result: 14 }
+		if LEVEL <=  7 { result: 15 }
+		if LEVEL <= 10 { result: 16 }
+		if LEVEL <= 12 { result: 17 }
+		if LEVEL <= 16 { result: 18 }
+		if LEVEL <= 20 { result: 19 }
+		if LEVEL <= 23 { result: 20 }
+		result: 22
+	}
+	if STAT =  55 {
+		if LEVEL <=  1 { result: 11 } \ Monster baseline AC \
+		if LEVEL <=  2 { result: 12 }
+		if LEVEL  =  3 { result: 13 }
+		if LEVEL  =  4 { result: 14 }
+		if LEVEL <=  7 { result: 15 }
+		if LEVEL <=  9 { result: 16 }
+		if LEVEL <= 12 { result: 17 }
+		if LEVEL <= 16 { result: 18 }
+		if LEVEL <= 19 { result: 19 }
+		if LEVEL <= 25 { result: 20 }
+		if LEVEL <= 27 { result: 21 }
+		if LEVEL <= 29 { result: 22 + 1d2 } \ Stats at ~0.5 get a 1d2. \
+		result: 25
+	}
+	if STAT =  56 {
+		if LEVEL <=  0 { result: 1d4+1 } \ Monster baseline hit point maximum \
+		if LEVEL <= 20 { result: 15 * LEVEL + 64 }
+		result: 45 * LEVEL - 522
+	}
+	if STAT =  60 {
+		if LEVEL =  0 { result: 1 - 1d2 } \ Monster baseline save modifier, STR \
+		if LEVEL =  1 { result: 1 }
+		if LEVEL =  2 { result: 1d2 }
+		if LEVEL =  3 { result: 2 }
+		if LEVEL =  4 { result: 2 }
+		if LEVEL =  5 { result: 3 }
+		if LEVEL =  6 { result: 3 }
+		if LEVEL =  7 { result: 3 }
+		if LEVEL =  8 { result: 4 }
+		if LEVEL =  9 { result: 4 }
+		if LEVEL = 10 { result: 4 }
+		if LEVEL = 11 { result: 5 }
+		if LEVEL = 12 { result: 5 }
+		if LEVEL = 13 { result: 5 }
+		if LEVEL = 14 { result: 5 }
+		if LEVEL = 15 { result: 6 }
+		if LEVEL = 16 { result: 7 }
+		if LEVEL = 17 { result: 6 }
+		if LEVEL = 18 { result: 5 }
+		if LEVEL = 19 { result: 6 + 1d2 }
+		if LEVEL = 20 { result: 8 }
+		if LEVEL = 21 { result: 7 }
+		if LEVEL = 22 { result: 7 }
+		if LEVEL = 23 { result: 9 }
+		if LEVEL = 24 { result: 10 }
+		if LEVEL = 25 { result: 11 }
+		if LEVEL = 26 { result: 9 }
+		if LEVEL = 27 { result: 10 }
+		if LEVEL = 28 { result: 9 + 1d2 }
+		if LEVEL = 29 { result: 12 }
+		if LEVEL = 30 { result: 13 + 1d2 }
+	}
+	if STAT =  61 {
+		if LEVEL =  0 { result: 1 } \ Monster baseline save modifier, DEX \
+		if LEVEL =  1 { result: 1d2 }
+		if LEVEL =  2 { result: 1d2 }
+		if LEVEL =  3 { result: 2 }
+		if LEVEL =  4 { result: 2 }
+		if LEVEL =  5 { result: 2 }
+		if LEVEL =  6 { result: 2 }
+		if LEVEL =  7 { result: 1 + 1d2 }
+		if LEVEL =  8 { result: 2 }
+		if LEVEL =  9 { result: 1 + 1d2 }
+		if LEVEL = 10 { result: 1 + 1d2 }
+		if LEVEL = 11 { result: 3 }
+		if LEVEL = 12 { result: 1 + 1d2 }
+		if LEVEL = 13 { result: 3 }
+		if LEVEL = 14 { result: 3 }
+		if LEVEL = 15 { result: 3 + 1d2 }
+		if LEVEL = 16 { result: 5 }
+		if LEVEL = 17 { result: 6 }
+		if LEVEL = 18 { result: 4 }
+		if LEVEL = 19 { result: 6 }
+		if LEVEL = 20 { result: 5 }
+		if LEVEL = 21 { result: 7 }
+		if LEVEL = 22 { result: 5 }
+		if LEVEL = 23 { result: 7 }
+		if LEVEL = 24 { result: 7 }
+		if LEVEL = 25 { result: 6 }
+		if LEVEL = 26 { result: 6 }
+		if LEVEL = 27 { result: 7 }
+		if LEVEL = 28 { result: 5 }
+		if LEVEL = 29 { result: 7 }
+		if LEVEL = 30 { result: 5 }
+	}
+	if STAT =  62 {
+		if LEVEL =  0 { result: 0 } \ Monster baseline save modifier, CON \
+		if LEVEL =  1 { result: 1d2 }
+		if LEVEL =  2 { result: 2 }
+		if LEVEL =  3 { result: 2 }
+		if LEVEL =  4 { result: 3 }
+		if LEVEL =  5 { result: 3 }
+		if LEVEL =  6 { result: 3 }
+		if LEVEL =  7 { result: 2 + 1d2 }
+		if LEVEL =  8 { result: 4 }
+		if LEVEL =  9 { result: 4 + 1d2 }
+		if LEVEL = 10 { result: 6 }
+		if LEVEL = 11 { result: 6 }
+		if LEVEL = 12 { result: 4 + 1d2  }
+		if LEVEL = 13 { result: 7 }
+		if LEVEL = 14 { result: 8 }
+		if LEVEL = 15 { result: 7 }
+		if LEVEL = 16 { result: 7 }
+		if LEVEL = 17 { result: 7 + 1d2 }
+		if LEVEL = 18 { result: 10 }
+		if LEVEL = 19 { result: 9 }
+		if LEVEL = 20 { result: 11 + 1d2 }
+		if LEVEL = 21 { result: 12 }
+		if LEVEL = 22 { result: 11 }
+		if LEVEL = 23 { result: 12 }
+		if LEVEL = 24 { result: 13 }
+		if LEVEL = 25 { result: 12 + 1d2 }
+		if LEVEL = 26 { result: 13 }
+		if LEVEL = 27 { result: 13 }
+		if LEVEL = 28 { result: 14 }
+		if LEVEL = 29 { result: 12 }
+		if LEVEL = 30 { result: 10 }
+	}
+	if STAT =  63 {
+		if LEVEL =  0 { result: -2 } \ Monster baseline save modifier, INT \
+		if LEVEL =  1 { result: -1 }
+		if LEVEL =  2 { result: -1 }
+		if LEVEL =  3 { result: 1 - 1d2 }
+		if LEVEL =  4 { result: 0 }
+		if LEVEL =  5 { result: 0 }
+		if LEVEL =  6 { result: 1 }
+		if LEVEL =  7 { result: 2 - 1d2 }
+		if LEVEL =  8 { result: 0 }
+		if LEVEL =  9 { result: 2 }
+		if LEVEL = 10 { result: 3 }
+		if LEVEL = 11 { result: 2 }
+		if LEVEL = 12 { result: 1 + 1d2 }
+		if LEVEL = 13 { result: 3 + 1d2 }
+		if LEVEL = 14 { result: 3 }
+		if LEVEL = 15 { result: 1 + 1d2 }
+		if LEVEL = 16 { result: 0 + 1d2 }
+		if LEVEL = 17 { result: 4 + 1d2 }
+		if LEVEL = 18 { result: 3 + 1d2 }
+		if LEVEL = 19 { result: 5 }
+		if LEVEL = 20 { result: 1 }
+		if LEVEL = 21 { result: 7 }
+		if LEVEL = 22 { result: 8 }
+		if LEVEL = 23 { result: 6 }
+		if LEVEL = 24 { result: 6 }
+		if LEVEL = 25 { result: 8 }
+		if LEVEL = 26 { result: 12 }
+		if LEVEL = 27 { result: 10 }
+		if LEVEL = 28 { result: 12 }
+		if LEVEL = 29 { result: 10 }
+		if LEVEL = 30 { result: 7 }
+	}
+	if STAT =  64 {
+		if LEVEL =  0 { result: 1 - 1d2 } \ Monster baseline save modifier, WIS \
+		if LEVEL =  1 { result: 2 - 1d2 }
+		if LEVEL =  2 { result: 1 }
+		if LEVEL =  3 { result: 1 }
+		if LEVEL =  4 { result: 1d2 }
+		if LEVEL =  5 { result: 2 }
+		if LEVEL =  6 { result: 2 }
+		if LEVEL =  7 { result: 2 }
+		if LEVEL =  8 { result: 1 + 1d2 }
+		if LEVEL =  9 { result: 4 }
+		if LEVEL = 10 { result: 3 + 1d2 }
+		if LEVEL = 11 { result: 3 + 1d2 }
+		if LEVEL = 12 { result: 5 }
+		if LEVEL = 13 { result: 5 }
+		if LEVEL = 14 { result: 6 }
+		if LEVEL = 15 { result: 4 + 1d2 }
+		if LEVEL = 16 { result: 7 }
+		if LEVEL = 17 { result: 7 + 1d2 }
+		if LEVEL = 18 { result: 8 }
+		if LEVEL = 19 { result: 7 }
+		if LEVEL = 20 { result: 6 + 1d2 }
+		if LEVEL = 21 { result: 11 }
+		if LEVEL = 22 { result: 11 }
+		if LEVEL = 23 { result: 10 }
+		if LEVEL = 24 { result: 10 + 1d2 }
+		if LEVEL = 25 { result: 11 }
+		if LEVEL = 26 { result: 12}
+		if LEVEL = 27 { result: 13 }
+		if LEVEL = 28 { result: 14 }
+		if LEVEL = 29 { result: 13 }
+		if LEVEL = 30 { result: 13 }
+	}
+	if STAT =  65 {
+		if LEVEL =  0 { result: -1d2 } \ Monster baseline save modifier, CHA \
+		if LEVEL =  1 { result: 0 }
+		if LEVEL =  2 { result: 0 }
+		if LEVEL =  3 { result: 0 }
+		if LEVEL =  4 { result: 1 }
+		if LEVEL =  5 { result: 1 }
+		if LEVEL =  6 { result: 1 }
+		if LEVEL =  7 { result: 1d2 }
+		if LEVEL =  8 { result: 1 }
+		if LEVEL =  9 { result: 3 }
+		if LEVEL = 10 { result: 1 + 1d2 }
+		if LEVEL = 11 { result: 3 }
+		if LEVEL = 12 { result: 2 + 1d2 }
+		if LEVEL = 13 { result: 4 + 1d2 }
+		if LEVEL = 14 { result: 5 }
+		if LEVEL = 15 { result: 6 }
+		if LEVEL = 16 { result: 5 }
+		if LEVEL = 17 { result: 8 }
+		if LEVEL = 18 { result: 6 + 1d2 }
+		if LEVEL = 19 { result: 9 }
+		if LEVEL = 20 { result: 6 + 1d2 }
+		if LEVEL = 21 { result: 7 + 1d2 }
+		if LEVEL = 22 { result: 9 }
+		if LEVEL = 23 { result: 8 }
+		if LEVEL = 24 { result: 12 }
+		if LEVEL = 25 { result: 8 }
+		if LEVEL = 26 { result: 9 }
+		if LEVEL = 27 { result: 10 }
+		if LEVEL = 28 { result: 15 }
+		if LEVEL = 29 { result: 11 }
+		if LEVEL = 30 { result: 9 }
+	}
+
+
+	\ CLASS RESOURCES AND BONUSES \
+	if STAT = 100 {
+		if LEVEL <=  1 { result:  0 } \ Artificer infusions known \
+		if LEVEL >= 20 { result: 12 }
+		result: 4 + 2*((N - 2)/4)
+	}
+	if STAT = 101 {
+		if LEVEL >= 14 { result: 14 } \ Artificer infusions max level \
+		if LEVEL >=  6 { result:  6 }
+		if LEVEL >=  2 { result:  2 }
+		result: 0
+	}
+	if STAT = 102 {
+		if LEVEL <=  1 { result:  0 } \ Artificer count infused items \
+		if LEVEL >= 20 { result:  6 }
+		result: 2 + ((N - 2)/4)
+	}
+	if STAT = 103 {
+		if LEVEL >= 18 { result:  6 } \ Artificer count attuned items \
+		if LEVEL >= 14 { result:  5 }
+		if LEVEL >= 10 { result:  4 }
+		if LEVEL >=  1 { result:  3 }
+		result: 0
+	}
+	if STAT = 120 {
+		if LEVEL >= 20 { result: 100 } \ Barbarian rage uses \
+		if LEVEL >= 17 { result:   6 }
+		if LEVEL >= 12 { result:   5 }
+		if LEVEL >=  6 { result:   4 }
+		if LEVEL >=  3 { result:   3 }
+		if LEVEL >=  1 { result:   2 }
+		result: 0
+	}
+	if STAT = 121 {
+		if LEVEL >= 20 { result: 4 } \ Barbarian rage bonus damage \
+		if LEVEL <=  0 { result: 0 }
+		result: 2 + 9 * (LEVEL-1) / 65 \hax0r\
+	}
+	if STAT = 122 {
+		if LEVEL >= 17 { result: 3 } \ Barbarian count brutal critical dice \
+		if LEVEL >= 13 { result: 2 }
+		if LEVEL >=  9 { result: 1 }
+		result: 0
+	}
+	if STAT = 140 {
+		if LEVEL >= 15 { result: 12 } \ Bard inspiration die size \
+		if LEVEL >= 10 { result: 10 }
+		if LEVEL >=  5 { result:  8 }
+		if LEVEL >=  1 { result:  6 }
+		result: 0
+	}
+	if STAT = 141 {
+		if LEVEL >= 20 { result: 5 + 2*5 + 2 } \ Bard inspirations per day \
+		if LEVEL >=  8 { result: 5 + 2*5 }
+		if LEVEL >=  5 { result: 4 + 2*4 }
+		if LEVEL >=  4 { result: 4 }
+		if LEVEL >=  1 { result: 3 }
+		result: 0
+	}
+	if STAT = 142 {
+		if LEVEL >= 16 { result: 12 } \ Bard song of rest die size \
+		if LEVEL >= 13 { result: 10 }
+		if LEVEL >=  9 { result:  8 }
+		if LEVEL >=  2 { result:  6 }
+		result: 0
+	}
+	if STAT = 160 {
+		if LEVEL >= 18 { result: 3 } \ Cleric count channel divinity uses \
+		if LEVEL >=  6 { result: 2 }
+		if LEVEL >=  2 { result: 1 }
+		result: 0
+	}
+	if STAT = 161 {
+		if LEVEL >= 20 { result: 1 } \ Cleric divine intervention success rate \
+		result: LEVEL >= 1d100
+	}
+	if STAT = 180 {
+		result: 6 \ Druid count wild shape uses per day \
+	}
+	if STAT = 181 {
+		if LEVEL >= 8 { result: 1   } \ Druid wild shape max CR \
+		if LEVEL >= 4 { result: 102 } \ this is "CR 1/2". take it or leave it. \
+		if LEVEL >= 2 { result: 104 } \ anydice does not do fractions. \
+		result: 0
+	}
+	if STAT = 182 {
+		if LEVEL >= 9 { result: 1 } \ Druid (non-moon) wild shape count multi-attack \
+		if LEVEL >= 6 { result: 1 } \ Note that these are EXTRA attacks. \
+		if LEVEL >= 2 { result: 1 } \ @todo: These are all kinda just, made up. Based on experience and guesses, not reality. \
+		result: 0
+	}
+	if STAT = 183 {
+		if LEVEL >= 9 { result: 5 } \ Druid (non-moon) wild shape attack modifier \
+		if LEVEL >= 6 { result: 4 }
+		if LEVEL >= 2 { result: 3 }
+		result: -1
+	}
+	if STAT = 184 {
+		if LEVEL >= 9 { result: 1d10 } \ Druid (non-moon) wild shape damage die \
+		if LEVEL >= 6 { result: 2d4  }
+		if LEVEL >= 2 { result: 1d6  }
+		result: -1
+	}
+	if STAT = 185 {
+		if LEVEL >= 9 { result: 3 } \ Druid (non-moon) wild shape damage modifier \
+		if LEVEL >= 6 { result: 3 }
+		if LEVEL >= 2 { result: 2 }
+		result: -1
+	}
+	if STAT = 200 {
+		if LEVEL >= 17 { result: 2 } \ Fighter count action surge uses \
+		if LEVEL >=  2 { result: 1 }
+		result: 0
+	}
+	if STAT = 201 {
+		if LEVEL >= 17 { result: 3 } \ Fighter count indomitable uses \
+		if LEVEL >= 13 { result: 2 }
+		if LEVEL >=  9 { result: 1 }
+		result: 0
+	}
+	if STAT = 202 {
+		if LEVEL >= 14 { result: 2 } \ Fighter count extra ASIs \
+		if LEVEL >=  6 { result: 1 }
+		result: 0
+	}
+	if STAT = 220 {
+		if LEVEL >= 17 { result: 1d10 } \ Monk martial arts damage die \
+		if LEVEL >= 11 { result: 1d8 }
+		if LEVEL >=  5 { result: 1d6 }
+		if LEVEL >=  1 { result: 1d4 }
+		result: 0
+	}
+	if STAT = 221 {
+		if LEVEL >= 20 { result: 30 } \ Monk unarmored bonus movement \
+		if LEVEL <=  1 { result:  0 }
+		result: 10 + 5 * ((LEVEL - 2)/4)
+	}
+	if STAT = 240 {
+		if LEVEL <= 0 { result: 0 } \ Paladin lay on hands HP per day \
+		result: 5 * LEVEL
+	}
+	if STAT = 241 {
+		if LEVEL >= 13 { result: 5d8 } \ Paladin max smite damage die \
+		if LEVEL >=  9 { result: 4d8 }
+		if LEVEL >=  5 { result: 3d8 }
+		if LEVEL >=  2 { result: 2d8 }
+		result: 0
+	}
+	if STAT = 242 {
+		if LEVEL >= 11 { result: 1d8 } \ Paladin improved divine smite die \
+		result: 0
+	}
+	if STAT = 260 {
+		if LEVEL >= 14 { result: 1d8 } \ Ranger favored foe damage die \
+		if LEVEL >=  6 { result: 1d6 }
+		if LEVEL >=  1 { result: 1d4 }
+		result: 0
+	}
+	if STAT = 280 {
+		if LEVEL >= 20 { result: 10d6 } \ Rogue sneak attack damage die \
+		if LEVEL <=  0 { result:    0 }
+		result: (1 + ((LEVEL - 1)/2))d6
+	}
+	if STAT = 281 {						\ Rogue count extra ASIs \
+		if LEVEL >= 10 { result: 1 }
+		result: 0
+	}
+	if STAT = 300 {
+		if LEVEL >= 20 { result: 14 } \ Sorcerer total slot levels from sorc points, most slots possible \
+		if LEVEL <=  1 { result:  0 }
+		SP: LEVEL
+		\ Ignoring all the cheesy things you can do once you can gain sorc points @ start of combat: \
+		\ 7 SP => 5 SL; 6 SP => 4 SL; SKIP 5 SP => 3 SL SKIP; 3 SP => 2 SL; 2 SP => 1 SL \
+		if LEVEL >= 9                         	{ E: SP / 7 }              	else { E: 0 }
+		if LEVEL >= 7 & SP-7*E > 5            	{ D: (SP-7*E) / 6 }        	else { D: 0 }
+		if LEVEL >= 3 & SP-7*E-6*D > 2    		{ B: (SP-7*E-6*D) / 3 }    	else { B: 0 }
+		if              SP-7*E-6*D-3*B > 1		{ A: (SP-7*E-6*D-3*B) / 2 }	else { A: 0 }
+		result: A + 2*B + 4*D + 5*E
+	}
+	if STAT >= 301 & STAT <= 305 {
+		SL: STAT - 300				\ Sorcerer count spell slots from sorc points, (SL)th level only \
+		if LEVEL >= 20 { result: 14 }
+		if LEVEL <=  1 | LEVEL < ((SL + 1) / 2) { result:  0 }
+		SP: LEVEL
+		result: SP / (SL + 1 + (SL >= 3))
+	}
+	if STAT = 306 {
+		if LEVEL >= 20 { result: 14 } \ Sorcerer total slot levels from sorc points, best slots possible \
+		if LEVEL <=  1 { result:  0 }
+
+		SP: LEVEL
+		\ 7 SP => 5 SL; 6 SP => 4 SL; 5 SP => 3 SL; 3 SP => 2 SL; 2 SP => 1 SL \
+		if LEVEL >= 9                           { E: SP / 7 }                    else { E: 0 }
+		if LEVEL >= 7 & SP-7*E > 5              { D: (SP-7*E) / 6 }              else { D: 0 }
+		if LEVEL >= 5 & SP-7*E-6*D > 4          { C: (SP-7*E-6*D) / 5 }          else { C: 0 }
+		if LEVEL >= 3 & SP-7*E-6*D-5*C > 2      { B: (SP-7*E-6*D-5*C) / 3 }      else { B: 0 }
+		if              SP-7*E-6*D-5*C-3*B > 1  { A: (SP-7*E-6*D-5*C-3*B) / 2 }  else { A: 0 }
+		result: A + 2*B + 3*C + 4*D + 5*E
+	}
+	if STAT = 307 {
+		if LEVEL <=  0 { result: 0 } \ Sorcerer count spell slots at 1st level from all slots + all sorc points \
+		if LEVEL  =  1 { result: 2 }
+		if LEVEL  =  2 { result: 4 }
+		if LEVEL <= 20 { SP: LEVEL } else { SP: 20 }
+
+		SLOT_MAX: [stat 8]
+		loop SLOT over {2..SLOT_MAX} { SP: SP + SLOT * [stat 20 + SLOT] }
+		result: [stat 21] + (SP / 2)
+	}
+	if STAT = 308 {
+		if LEVEL <=  0 { result: 0 } \ Sorcerer count spell slots at highest slot level (MAX 5TH!) from all slots + all sorc points \
+		if LEVEL  =  1 { result: 2 }
+		if LEVEL  =  2 { result: 4 }
+		if LEVEL <= 20 { SP: LEVEL } else { SP: 20 }
+
+		\ Note: This stat is a bit niche. I just need a value for the "biggest spells, all the time" sorc concept. \
+		\ This specific logic is unlikely to fit your build test, but should not require much modification to work. \
+
+		SLOT_MAX: [lowest of [stat 8] and 5]
+		COUNT: [stat 20 + SLOT_MAX]
+		loop SLOT over {1..SLOT_MAX-1} { SP: SP + SLOT * [stat 20 + SLOT] }
+		result: COUNT + (SP / (SLOT_MAX + 1 + (SLOT_MAX >= 3)))
+	}
+	if STAT = 320 {
+		if LEVEL >= 17 { result: 4 } \ Warlock count pact slots \
+		if LEVEL >= 11 { result: 3 }
+		if LEVEL >=  2 { result: 2 }
+		if LEVEL  =  1 { result: 1 }
+		result: 0
+	}
+	if STAT = 321 {
+		if LEVEL >=  9 { result: 5 } \ Warlock pact slot level \
+		if LEVEL <=  0 { result: 0 }
+		result: ((LEVEL - 1)/2) + 1
+	}
+	if STAT = 322 {
+		if LEVEL >= 20 { result: 4*4 + 4 } \ Warlock count pact slots + arcanum per day \
+		if LEVEL >= 17 { result: 3*4 + 4 }
+		if LEVEL >= 15 { result: 3*3 + 3 }
+		if LEVEL >= 13 { result: 3*3 + 2 }
+		if LEVEL >= 11 { result: 3*3 + 1 }
+		if LEVEL >=  2 { result: 3*2 }
+		if LEVEL  =  1 { result: 3*1 }
+		result: 0
+	}
+	if STAT = 323 {
+		if LEVEL >= 17 { result: 4 } \ Mystic arcanum count uses per day \
+		if LEVEL >= 15 { result: 3 }
+		if LEVEL >= 13 { result: 2 }
+		if LEVEL >= 11 { result: 1 }
+		result: 0
+	}
+	if STAT = 324 {
+		if LEVEL >= 18 { result: 8 } \ Warlock count invocations \
+		if LEVEL >= 15 { result: 7 }
+		if LEVEL >= 12 { result: 6 }
+		if LEVEL >=  9 { result: 5 }
+		if LEVEL >=  7 { result: 4 }
+		if LEVEL >=  5 { result: 3 }
+		if LEVEL >=  2 { result: 2 }
+		result: 0
+	}
+	if STAT = 340 {
+		if LEVEL <= 0 { result: 0 } \ Wizard count slot levels from recovery \
+		result: (LEVEL + 1) / 2
+	}
+
+
+	\ SUBCLASS RESOURCES AND BONUSES \
+	\ @todo. its own project, really \
+
+
+	\ The index entered does not refer to a statistic. \
+	result: ERROR_STAT_INDEX_NOT_FOUND
 }
 
 
-\ CLASS RESOURCES AND BONUSES \
-if STAT = 100 {
-  if LEVEL <=  1 { result:  0 } \ Artificer infusions known \
-  if LEVEL >= 20 { result: 12 }
-  result: 4 + 2*((N - 2)/4)
-}
-if STAT = 101 {
-  if LEVEL >= 14 { result: 14 } \ Artificer infusions max level \
-  if LEVEL >=  6 { result:  6 }
-  if LEVEL >=  2 { result:  2 }
-  result: 0
-}
-if STAT = 102 {
-  if LEVEL <=  1 { result:  0 } \ Artificer count infused items \
-  if LEVEL >= 20 { result:  6 }
-  result: 2 + ((N - 2)/4)
-}
-if STAT = 103 {
-  if LEVEL >= 18 { result:  6 } \ Artificer count attuned items \
-  if LEVEL >= 14 { result:  5 }
-  if LEVEL >= 10 { result:  4 }
-  if LEVEL >=  1 { result:  3 }
-  result: 0
-}
-if STAT = 104 {
-  if LEVEL >= 20 { result: 100 } \ Barbarian rage uses \
-  if LEVEL >= 17 { result:   6 }
-  if LEVEL >= 12 { result:   5 }
-  if LEVEL >=  6 { result:   4 }
-  if LEVEL >=  3 { result:   3 }
-  if LEVEL >=  1 { result:   2 }
-  result: 0
-}
-if STAT = 105 {
-  if LEVEL >= 20 { result: 4 } \ Barbarian rage bonus damage \
-  if LEVEL <=  0 { result: 0 }
-  result: 2 + 9 * (LEVEL-1) / 65 \hax\
-}
-if STAT = 106 {
-  if LEVEL >= 17 { result: 3 } \ Barbarian count brutal critical dice \
-  if LEVEL >= 13 { result: 2 }
-  if LEVEL >=  9 { result: 1 }
-  result: 0
-}
-if STAT = 107 {
-  if LEVEL >= 15 { result: 12 } \ Bard inspiration die size \
-  if LEVEL >= 10 { result: 10 }
-  if LEVEL >=  5 { result:  8 }
-  if LEVEL >=  1 { result:  6 }
-  result: 0
-}
-if STAT = 108 {
-  if LEVEL >= 20 { result: 5 + 2*5 + 2 } \ Bard inspirations per day \
-  if LEVEL >=  8 { result: 5 + 2*5 }
-  if LEVEL >=  5 { result: 4 + 2*4 }
-  if LEVEL >=  4 { result: 4 }
-  if LEVEL >=  1 { result: 3 }
-  result: 0
-}
-if STAT = 109 {
-  if LEVEL >= 16 { result: 12 } \ Bard song of rest die size \
-  if LEVEL >= 13 { result: 10 }
-  if LEVEL >=  9 { result:  8 }
-  if LEVEL >=  2 { result:  6 }
-  result: 0
-}
-if STAT = 110 {
-  if LEVEL >= 18 { result: 3 } \ Cleric count channel divinity uses \
-  if LEVEL >=  6 { result: 2 }
-  if LEVEL >=  2 { result: 1 }
-  result: 0
-}
-if STAT = 111 {
-  if LEVEL >= 20 { result: 1 } \ Cleric intervention success rate \
-  result: LEVEL >= 1d100
-}
-if STAT = 112 {
-  result: 6
-}
-if STAT = 113 {
-  if LEVEL >= 8 { result: 1 } \ Druid wild shape max CR \
-  if LEVEL >= 4 { result: 0 } \lol\
-  if LEVEL >= 2 { result: 0 } \anydice cannot do fractions\
-  result: -1
-}
-if STAT = 114 {
-  if LEVEL >= 9 { result: LEVEL/3 } \ Moon druid wild shape max CR \
-  if LEVEL >= 6 { result: 2 }
-  if LEVEL >= 2 { result: 1 }
-  result: -1
-}
-if STAT = 115 {
-  if LEVEL >= 17 { result: 2 } \ Fighter count action surge uses \
-  if LEVEL >=  2 { result: 1 }
-  result: 0
-}
-if STAT = 116 {
-  if LEVEL >= 17 { result: 3 } \ Fighter count indomitable uses \
-  if LEVEL >= 13 { result: 2 }
-  if LEVEL >=  9 { result: 1 }
-  result: 0
-}
-if STAT = 117 {
-  if LEVEL >= 17 { result: 1d10 } \ Monk martial arts damage die \
-  if LEVEL >= 11 { result: 1d8 }
-  if LEVEL >=  5 { result: 1d6 }
-  if LEVEL >=  1 { result: 1d4 }
-  result: 0
-}
-if STAT = 118 {
-  if LEVEL >= 20 { result: 30 } \ Monk unarmored bonus movement \
-  if LEVEL <=  1 { result:  0 }
-  result: 10 + 5 * ((LEVEL - 2)/4)
-}
-if STAT = 119 {
-  if LEVEL <= 0 { result: 0 } \ Paladin lay on hands HP per day \
-  result: 5 * LEVEL
-}
-if STAT = 120 {
-  if LEVEL >= 13 { result: 5d8 } \ Paladin max smite damage die \
-  if LEVEL >=  9 { result: 4d8 }
-  if LEVEL >=  5 { result: 3d8 }
-  if LEVEL >=  2 { result: 2d8 }
-  result: 0
-}
-if STAT = 121 {
-  if LEVEL >= 11 { result: 1d8 } \ Paladin improved divine smite die \
-  result: 0
-}
-if STAT = 122 {
-  if LEVEL >= 14 { result: 1d8 } \ Ranger favored foe damage die \
-  if LEVEL >=  6 { result: 1d6 }
-  if LEVEL >=  1 { result: 1d4 }
-  result: 0
-}
-if STAT = 123 {
-  if LEVEL >= 20 { result: 10d6 } \ Rogue sneak attack damage die \
-  if LEVEL <=  0 { result:    0 }
-  result: (1 + ((N - 1)/2))d6
-}
-if STAT = 124 {
-  if LEVEL >= 20 { result: 14 } \ Sorcerer extra slots from sorc points \
-  if LEVEL <=  1 { result:  0 }
-
-  \ Just trust me on this one. I'm super-duper right. \
-  E: LEVEL / 7
-  D: 0
-  C: 0
-  B: 0
-  A: 0
-  if N-7*E             > 0  { D: (N-7*E)/6 }
-  if N-7*E-6*D         > 0  { C: (N-7*E-6*D)/5 }
-  if N-7*E-6*D-5*C     > 0  { B: (N-7*E-6*D-5*C)/3 }
-  if N-7*E-6*D-5*C-3*B > 0  { A: (N-7*E-6*D-5*C-3*B)/2 }
-  result: A + 2*B + 3*C + 4*D + 5*E
-}
-if STAT = 125 {
-  if LEVEL >= 17 { result: 4 } \ Warlock count pact slots \
-  if LEVEL >= 11 { result: 3 }
-  if LEVEL >=  2 { result: 2 }
-  if LEVEL  =  1 { result: 1 }
-  result: 0
-}
-if STAT = 126 {
-  if LEVEL >=  9 { result: 5 } \ Warlock pact slot level \
-  if LEVEL <=  0 { result: 0 }
-  result: ((LEVEL - 1)/2) + 1
-}
-if STAT = 127 {
-  if LEVEL >= 20 { result: 4*4 + 4 } \ Warlock count pact slots + arcanum per day \
-  if LEVEL >= 17 { result: 3*4 + 4 }
-  if LEVEL >= 15 { result: 3*3 + 3 }
-  if LEVEL >= 13 { result: 3*3 + 2 }
-  if LEVEL >= 11 { result: 3*3 + 1 }
-  if LEVEL >=  2 { result: 3*2 }
-  if LEVEL  =  1 { result: 3*1 }
-  result: 0
-}
-if STAT = 128 {
-  if LEVEL >= 17 { result: 4 } \ Mystic arcanum count uses per day \
-  if LEVEL >= 15 { result: 3 }
-  if LEVEL >= 13 { result: 2 }
-  if LEVEL >= 11 { result: 1 }
-  result: 0
-}
-if STAT = 129 {
-  if LEVEL >= 18 { result: 8 } \ Warlock count invocations \
-  if LEVEL >= 15 { result: 7 }
-  if LEVEL >= 12 { result: 6 }
-  if LEVEL >=  9 { result: 5 }
-  if LEVEL >=  7 { result: 4 }
-  if LEVEL >=  5 { result: 3 }
-  if LEVEL >=  2 { result: 2 }
-  result: 0
-}
-if STAT = 130 {
-  if LEVEL <= 0 { result: 0 } \ Wizard count slot levels from recovery \
-  result: (LEVEL + 1)/2
-}
-
-\ The index you entered does not refer to a statistic. \
-result: ERROR
-}
-\End of Function\
+\\\ END STATS LOOKUP FUNCTION \\\
+\\\ BEGIN ALL OTHER FUNCTIONS \\\
 
 
-\\\ Testing \\\
+\ Preroll Evaluation \
 
-output [stat  0 at 12] named "Tier of play @ 12th"
-output [stat 62 at 17] named "CON saves @ CR 14"
-
-loop LVL over {1..20} {
-  TOHIT: [stat  1 at LVL] + [stat 2 at LVL]
-  VS_AC: [stat 55 at LVL]
-  output 1d20 + TOHIT >= VS_AC named "HIT% @[LVL]"
+function: preroll ROLL:n plus BONUS:n vs TARGET:n crit on CRIT_VAL:n {
+	if ROLL			 = 1		{ result: MISS }
+	if ROLL			>= CRIT_VAL	{ result: CRIT }
+	if ROLL + BONUS	>= TARGET	{ result: HIT  }
+	result: MISS
 }
 
-\ output [stat 99 at 5] named "Throw an error for nonexistent stat" \
+function: attack PREROLL:n hit HIT_DIE:d miss MISS_DIE crit CRIT_DIE:d {
+    if PREROLL = 0 { result: MISS_DIE }
+    if PREROLL = 1 { result: HIT_DIE  }
+    if PREROLL = 2 { result: CRIT_DIE }
+	result: ERROR_INVALID_PREROLLED_ATTACK
+}
+function: attack PREROLL:n hit HIT_DIE:d crit CRIT_DIE:d {
+    if PREROLL = 0 { result: 0        } \ Safe to assume. \
+    if PREROLL = 1 { result: HIT_DIE  }
+    if PREROLL = 2 { result: CRIT_DIE }
+	result: ERROR_INVALID_PREROLLED_ATTACK
+}
+
+function: preroll ROLL:n plus BONUS:n vs DC:n {
+	if ROLL + BONUS	>= DC { result: MISS  }
+	result: HIT
+}
+
+function: save PREROLL:n success SUCCESS_DIE:d failure FAILURE_DIE:d {
+	if PREROLL = 0 { result: MISS_DIE }
+    if PREROLL = 1 { result: HIT_DIE  }
+	result: ERROR_INVALID_PREROLLED_SAVING_THROW
+}
+
+
+\ Feat and ASI adjustment functions \
+
+function: primary with N_FULL:n full and N_HALF:n half feats plus N_EXTRA_ASI:n extra asi {
+	if N_FULL + N_HALF > [stat 11] + N_EXTRA_ASI { result: ERROR_MORE_FEATS_THAN_ABILITY_SCORE_IMPROVEMENTS } \hacker a13r7\
+	
+	PRIMARY_START:		17
+	SECONDARY_START:	14
+	N_FEATS_START:		 0
+
+	IMPROVEMENT: N_HALF + 2 * ([stat 11] + N_EXTRA_ASI - N_FULL - N_HALF)
+	result: ([lowest of 20 and PRIMARY_START + IMPROVEMENT] - 10) / 2
+}
+
+function: secondary with N_FULL:n full and N_HALF:n half feats plus N_EXTRA_ASI:n extra asi {
+	if N_FULL + N_HALF > [stat 11] + N_EXTRA_ASI { result: ERROR_MORE_FEATS_THAN_ABILITY_SCORE_IMPROVEMENTS }
+	
+	PRIMARY_START:		17
+	SECONDARY_START:	14
+	N_FEATS_START:		 0
+
+	IMPROVEMENT: 2 * [highest of 0 and [stat 11] + N_EXTRA_ASI - N_FULL - N_HALF] + [highest of 0 and N_HALF]
+	if PRIMARY + IMPROVEMENT <= 20 { result: SECONDARY_START }
+	result: (SECONDARY_START + IMPROVEMENT - (20 - PRIMARY_START) - 10) / 2
+}
+
+\ Attacks \
+function: adjust regular attack to use NEW:n mod {
+	DIFFERENCE: MOD - NEW
+	if DIFFERENCE = 0 { result: ATK_REG     } \ Copying a prerolled die means not rolling a new die. A fish in sea. \
+	if DIFFERENCE = 1 { result: ATK_REG_ONE }
+	if DIFFERENCE = 2 { result: ATK_REG_TWO }
+	result: [preroll REG plus PRO+NEW vs AC crit on CRIT_MIN] \ At least we tried. Preroll a new die anyway. \
+}
+function: adjust advantage attack to use NEW:n mod {
+	DIFFERENCE: MOD - NEW
+	if DIFFERENCE = 0 { result: ATK_ADV     }
+	if DIFFERENCE = 1 { result: ATK_ADV_ONE }
+	if DIFFERENCE = 2 { result: ATK_ADV_TWO }
+	result: [preroll ADV plus PRO+NEW vs AC crit on CRIT_MIN]
+}
+function: adjust tripleadv attack to use NEW:n mod {
+	DIFFERENCE: MOD - NEW
+	if DIFFERENCE = 0 { result: ATK_TRI     }
+	if DIFFERENCE = 1 { result: ATK_TRI_ONE }
+	if DIFFERENCE = 2 { result: ATK_TRI_TWO }
+	result: [preroll TRI plus PRO+NEW vs AC crit on CRIT_MIN]
+}
+function: adjust secondary regular attack to use NEW:n mod {
+	DIFFERENCE: SEC - NEW
+	if DIFFERENCE = 0 { result: ATK_REG_SEC     }
+	if DIFFERENCE = 1 { result: ATK_REG_SEC_ONE }
+	if DIFFERENCE = 2 { result: ATK_REG_SEC_TWO }
+	if DIFFERENCE = 3 { result: ATK_REG_SEC_THR }
+	result: [preroll REG plus PRO+NEW vs AC crit on CRIT_MIN]
+}
+function: adjust secondary advantage attack to use NEW:n mod {
+	DIFFERENCE: SEC - NEW
+	if DIFFERENCE = 0 { result: ATK_ADV_SEC     }
+	if DIFFERENCE = 1 { result: ATK_ADV_SEC_ONE }
+	if DIFFERENCE = 2 { result: ATK_ADV_SEC_TWO }
+	if DIFFERENCE = 3 { result: ATK_ADV_SEC_THR }
+	result: [preroll ADV plus PRO+NEW vs AC crit on CRIT_MIN]
+}
+function: adjust secondary tripleadv attack to use NEW:n mod {
+	DIFFERENCE: SEC - NEW
+	if DIFFERENCE = 0 { result: ATK_TRI_SEC     }
+	if DIFFERENCE = 1 { result: ATK_TRI_SEC_ONE }
+	if DIFFERENCE = 2 { result: ATK_TRI_SEC_TWO }
+	if DIFFERENCE = 3 { result: ATK_TRI_SEC_THR }
+	result: [preroll TRI plus PRO+NEW vs AC crit on CRIT_MIN]
+}
+
+\ Saving throw DCs \
+function: adjust STAT:n save to use NEW:n mod {
+	DIFFERENCE: MOD - NEW
+	if DIFFERENCE = 0 {
+		if STAT = STR { result: STR_SAVE }
+		if STAT = DEX { result: DEX_SAVE }
+		if STAT = CON { result: CON_SAVE }
+		if STAT = INT { result: INT_SAVE }
+		if STAT = WIS { result: WIS_SAVE }
+		if STAT = CHA { result: CHA_SAVE }
+	}
+	if DIFFERENCE = 1 {
+		if STAT = STR { result: STR_SAVE_ONE }
+		if STAT = DEX { result: DEX_SAVE_ONE }
+		if STAT = CON { result: CON_SAVE_ONE }
+		if STAT = INT { result: INT_SAVE_ONE }
+		if STAT = WIS { result: WIS_SAVE_ONE }
+		if STAT = CHA { result: CHA_SAVE_ONE }
+	}
+	if DIFFERENCE = 2 {
+		if STAT = STR { result: STR_SAVE_TWO }
+		if STAT = DEX { result: DEX_SAVE_TWO }
+		if STAT = CON { result: CON_SAVE_TWO }
+		if STAT = INT { result: INT_SAVE_TWO }
+		if STAT = WIS { result: WIS_SAVE_TWO }
+		if STAT = CHA { result: CHA_SAVE_TWO }
+	}
+	result: [preroll REG plus [stat STAT] vs 8+PRO+NEW]
+}
+function: adjust STAT:n secondary save to use NEW:n mod {
+	DIFFERENCE: SEC - NEW
+	if DIFFERENCE = 0 {
+		if STAT = STR { result: STR_SAVE_SEC }
+		if STAT = DEX { result: DEX_SAVE_SEC }
+		if STAT = CON { result: CON_SAVE_SEC }
+		if STAT = INT { result: INT_SAVE_SEC }
+		if STAT = WIS { result: WIS_SAVE_SEC }
+		if STAT = CHA { result: CHA_SAVE_SEC }
+	}
+	if DIFFERENCE = 1 {
+		if STAT = STR { result: STR_SAVE_SEC_ONE }
+		if STAT = DEX { result: DEX_SAVE_SEC_ONE }
+		if STAT = CON { result: CON_SAVE_SEC_ONE }
+		if STAT = INT { result: INT_SAVE_SEC_ONE }
+		if STAT = WIS { result: WIS_SAVE_SEC_ONE }
+		if STAT = CHA { result: CHA_SAVE_SEC_ONE }
+	}
+	if DIFFERENCE = 2 {
+		if STAT = STR { result: STR_SAVE_SEC_TWO }
+		if STAT = DEX { result: DEX_SAVE_SEC_TWO }
+		if STAT = CON { result: CON_SAVE_SEC_TWO }
+		if STAT = INT { result: INT_SAVE_SEC_TWO }
+		if STAT = WIS { result: WIS_SAVE_SEC_TWO }
+		if STAT = CHA { result: CHA_SAVE_SEC_TWO }
+	}
+	if DIFFERENCE = 3 {
+		if STAT = STR { result: STR_SAVE_SEC_THR }
+		if STAT = DEX { result: DEX_SAVE_SEC_THR }
+		if STAT = CON { result: CON_SAVE_SEC_THR }
+		if STAT = INT { result: INT_SAVE_SEC_THR }
+		if STAT = WIS { result: WIS_SAVE_SEC_THR }
+		if STAT = CHA { result: CHA_SAVE_SEC_THR }
+	}
+	result: [preroll REG plus [stat STAT] vs 8+PRO+NEW]
+}
+
+
+\\\ END ALL OTHER FUNCTIONS \\\
+\\\ BEGIN GENERAL CONFIGURATION \\\
+
+
+ROUND_UP: 1
+
+REG:	  1d20	\ "Regular" d20 roll. \
+ADV:	1@2d20
+DIS:	2@2d20
+TRI:	1@3d20	\ "Triple" d20, idk. \
+
+MISS:	0
+HIT:	1
+CRIT:	2
+
+THREAT:	1 \ Standard critical range. Not really used. \
+KEEN:	0 \ Expanded critical range. Not really used. \
+CRIT_MIN: 20 - THREAT - KEEN + 1
+CRITICAL:  2 \ Standard critical multiplier. \
+
+PRIMARY:   1 \ stat 4 for DCs of primary ability scores, typ. full casters \
+SECONDARY: 2 \ stat 5 for DCs of other ability scores, typ. half casters \
+
+DAGGER:			1d4
+HANDAXE:		1d6
+SPEAR_VER:		1d8
+
+GLAIVE:			1d10
+GREATSWORD:		2d6
+LANCE:			1d12
+LONGSWORD:		1d8
+LONGSWORD_VER:	1d10
+MAUL:			1d12
+RAPIER:			1d8
+SHORTSWORD:		1d6
+WARHAMMER:		1d8
+WARHAMMER_VER:	1d10
+
+HAND_CROSSBOW:	1d6
+HEAVY_CROSSBOW:	1d10
+LIGHT_CROSSBOW:	1d8
+LONGBOW:		1d8
+SHORTBOW:		1d6
+
+POW: 10 \ Used for power attacks (GWM, SS). \
+
+STR: 60 \ Used for [stat X] lookups. \
+DEX: 61
+CON: 62
+INT: 63
+WIS: 64
+CHA: 65
+
+
+\\\ END GENERAL CONFIGURATION \\\
+\\\ BEGIN BUILD CONFIGURATION \\\
+
+
+MIN_LEVEL:  1
+MAX_LEVEL: 20 \ Keep in mind the likelihood of a 20th level campaign. \
+
+loop LVL over {MIN_LEVEL..MAX_LEVEL} {
+
+	\ Level Config \
+	LEVEL:	LVL
+	TIER:	[stat 0]
+	PRO:	[stat 1]
+
+	N_ASI:				[stat 11]	\ big @todo. \
+	N_FEATS:			0			\ Unless noted otherwise. \
+	N_HALF_FEATS: 		0			\ Unless noted otherwise. \
+
+	MOD:				[stat 2]	\ Does not compensate for feats or half-feats. @todo \
+	SEC:				[stat 3]
+	SAVE_DC:			[stat 4]	\ Does not compensate for feats or half-feats. @todo \
+	SAVE_DC_SECONDARY:	[stat 5]	\ Does not compensate for feats or half-feats. @todo \
+
+	RAGED:	[stat 121]	\ Rage damage bonus \
+	INSPO:	[stat 140]	\ Bardic Inspiration die \
+	WILDN:	[stat 181]	\ Wild shape count extra attacks \
+	WILDA:	[stat 182]	\ Wild shape attack modifier (Druids are not proficient in natural weapons.) \
+	WILDD:	[stat 182]	\ Wild shape damage die \
+	WILDM:	[stat 183]	\ Wild shape damage modifier \
+	FXASI:	[stat 202]	\ Fighter extra ASIs \
+	MADIE:	[stat 220]	\ Martial Arts die \
+	SMITE:	[stat 241]	\ Smite extra damage die, max slot \
+	IMPRV:	[stat 242]	\ Improved Divine Smite extra melee damage die \
+	FAVOR:	[stat 260]	\ Favored Foe damage die \
+	SNEAK:	[stat 280]	\ Sneak Attack damage die \
+	RXASI:	[stat 281]	\ Rogue extra ASI \
+	FBXTR:	[stat 308]	\ Sorcerer number highest slots (for fireballs) from sorc points \
+	FBLVL:	[lowest of [stat 8] and 5]	\ Sorcerer level of highest slots (for fireballs) from sorc points \
+	PACTN:	[stat 320]	\ Pact Magic number of pact slots \
+	PACTL:	[stat 321]	\ Pact Magic level of pact slots \
+	RECOV:	[stat 340]	\ Arcane Recovery total slot levels recoverable daily \
+
+	MONSTER_ABILITY_MOD: [stat 51]
+	MONSTER_DC: [stat 53]
+	AC: [stat 55]
+	HP: [stat 56]
+	STR_SAVE_BONUS: [stat 60]
+	DEX_SAVE_BONUS: [stat 61]
+	CON_SAVE_BONUS: [stat 62]
+	INT_SAVE_BONUS: [stat 63]
+	WIS_SAVE_BONUS: [stat 64]
+	CHA_SAVE_BONUS: [stat 65]
+
+	\ Precompute some outcomes. Doing it here means not doing it many thousands of times more, further below. \
+	\ But it does not work (yet) with adjustments for feats and half-feats. @todo \
+
+	ATK_REG: [preroll REG plus MOD+PRO vs AC crit on CRIT_MIN] \ Attacks using the primary ability score \
+	ATK_DIS: [preroll DIS plus MOD+PRO vs AC crit on CRIT_MIN] \ @todo: I don't actually fetch the DIS prerolls anywhere. \
+	ATK_ADV: [preroll ADV plus MOD+PRO vs AC crit on CRIT_MIN]
+	ATK_TRI: [preroll TRI plus MOD+PRO vs AC crit on CRIT_MIN]
+	
+	ATK_REG_SEC: [preroll REG plus MOD+PRO vs AC crit on CRIT_MIN] \ Attacks using the secondary ability score \
+	ATK_DIS_SEC: [preroll DIS plus MOD+PRO vs AC crit on CRIT_MIN]
+	ATK_ADV_SEC: [preroll ADV plus MOD+PRO vs AC crit on CRIT_MIN]
+	ATK_TRI_SEC: [preroll TRI plus MOD+PRO vs AC crit on CRIT_MIN]
+
+	STR_SAVE: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC] \ Saving throws vs the primary ability score DC \
+	DEX_SAVE: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC]
+	CON_SAVE: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC]
+	INT_SAVE: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC]
+	WIS_SAVE: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC]
+	CHA_SAVE: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC]
+
+	STR_SAVE_SEC: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC_SECONDARY] \ Saving throws vs the secondary ability score DC \
+	DEX_SAVE_SEC: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC_SECONDARY]
+	CON_SAVE_SEC: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC_SECONDARY]
+	INT_SAVE_SEC: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC_SECONDARY]
+	WIS_SAVE_SEC: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC_SECONDARY]
+	CHA_SAVE_SEC: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC_SECONDARY]
+
+	\ If there are Feats or ASIs in play, then there is variability in [MOD]. So, we repeat the above: \
+	N_ASI_MAX: N_ASI + FXASI
+	if N_ASI_MAX >= 1 {
+		ATK_REG_ONE: [preroll REG plus MOD+PRO-1 vs AC crit on CRIT_MIN] \ One ability score modifier behind, primary ability. \
+		ATK_DIS_ONE: [preroll DIS plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+		ATK_ADV_ONE: [preroll ADV plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+		ATK_TRI_ONE: [preroll TRI plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+
+		STR_SAVE_ONE: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC-1]
+		DEX_SAVE_ONE: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC-1]
+		CON_SAVE_ONE: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC-1]
+		INT_SAVE_ONE: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC-1]
+		WIS_SAVE_ONE: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC-1]
+		CHA_SAVE_ONE: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC-1]
+		if N_ASI_MAX >= 2 {
+			ATK_REG_TWO: [preroll REG plus MOD+PRO-2 vs AC crit on CRIT_MIN] \ Two ability score modifiers behind, primary ability. \
+			ATK_DIS_TWO: [preroll DIS plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+			ATK_ADV_TWO: [preroll ADV plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+			ATK_TRI_TWO: [preroll TRI plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+
+			STR_SAVE_TWO: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC-2]
+			DEX_SAVE_TWO: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC-2]
+			CON_SAVE_TWO: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC-2]
+			INT_SAVE_TWO: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC-2]
+			WIS_SAVE_TWO: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC-2]
+			CHA_SAVE_TWO: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC-2]
+			if N_ASI_MAX >= 3 {
+				ATK_REG_SEC_ONE: [preroll REG plus MOD+PRO-1 vs AC crit on CRIT_MIN] \ One ability score modifier behind, secondary ability \
+				ATK_DIS_SEC_ONE: [preroll DIS plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+				ATK_ADV_SEC_ONE: [preroll ADV plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+				ATK_TRI_SEC_ONE: [preroll TRI plus MOD+PRO-1 vs AC crit on CRIT_MIN]
+				STR_SAVE_SEC_ONE: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				DEX_SAVE_SEC_ONE: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				CON_SAVE_SEC_ONE: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				INT_SAVE_SEC_ONE: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				WIS_SAVE_SEC_ONE: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				CHA_SAVE_SEC_ONE: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC_SECONDARY-1]
+				if N_ASI_MAX >= 4 {
+					ATK_REG_SEC_TWO: [preroll REG plus MOD+PRO-2 vs AC crit on CRIT_MIN] \ Two ability score modifiers behind, secondary ability \
+					ATK_DIS_SEC_TWO: [preroll DIS plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+					ATK_ADV_SEC_TWO: [preroll ADV plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+					ATK_TRI_SEC_TWO: [preroll TRI plus MOD+PRO-2 vs AC crit on CRIT_MIN]
+					STR_SAVE_SEC_TWO: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					DEX_SAVE_SEC_TWO: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					CON_SAVE_SEC_TWO: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					INT_SAVE_SEC_TWO: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					WIS_SAVE_SEC_TWO: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					CHA_SAVE_SEC_TWO: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC_SECONDARY-2]
+					if N_ASI_MAX >= 5 {
+						ATK_REG_SEC_THR: [preroll REG plus MOD+PRO-3 vs AC crit on CRIT_MIN] \ Three!!! ability score modifiers behind, secondary ability \
+						ATK_DIS_SEC_THR: [preroll DIS plus MOD+PRO-3 vs AC crit on CRIT_MIN]
+						ATK_ADV_SEC_THR: [preroll ADV plus MOD+PRO-3 vs AC crit on CRIT_MIN]
+						ATK_TRI_SEC_THR: [preroll TRI plus MOD+PRO-3 vs AC crit on CRIT_MIN]
+						STR_SAVE_SEC_THR: [preroll REG plus STR_SAVE_BONUS vs SAVE_DC_SECONDARY-3] \ I really hope you guys aren't using these \
+						DEX_SAVE_SEC_THR: [preroll REG plus DEX_SAVE_BONUS vs SAVE_DC_SECONDARY-3]
+						CON_SAVE_SEC_THR: [preroll REG plus CON_SAVE_BONUS vs SAVE_DC_SECONDARY-3]
+						INT_SAVE_SEC_THR: [preroll REG plus INT_SAVE_BONUS vs SAVE_DC_SECONDARY-3]
+						WIS_SAVE_SEC_THR: [preroll REG plus WIS_SAVE_BONUS vs SAVE_DC_SECONDARY-3]
+						CHA_SAVE_SEC_THR: [preroll REG plus CHA_SAVE_BONUS vs SAVE_DC_SECONDARY-3]
+					}
+				}
+			}
+		}
+	}
+
+
+	\\\ END BUILD CONFIGURATION \\\
+	\\\ BEGIN ACTUAL BUILD TEST \\\
+
+
+	output 0 named "======================================="
+
+	\ Basic example \
+	WEAPON: DAGGER
+	PAIRED: DAGGER
+	output [attack ATK_REG
+		hit  WEAPON+SNEAK+MOD     + [attack ATK_REG hit PAIRED       crit 2d(PAIRED)      ]
+		miss 0                    + [attack ATK_REG hit PAIRED+SNEAK crit 2d(PAIRED+SNEAK)]
+		crit 2d(WEAPON+SNEAK)+MOD + [attack ATK_REG hit PAIRED       crit 2d(PAIRED)      ]
+	] named "[LEVEL] Two-weapon rogue attacking twice"
+
+	\ Example that adjusts for feats \
+	N_FULL_FEATS:	1
+	N_HALF_FEATS:	0
+	if N_ASI + RXASI >= N_FULL_FEATS + N_HALF_FEATS {
+		\ We replace MOD with VAR. \
+		\ We replace ATK_REG with VAR_REG. \
+		VAR:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
+		VAR_REG: [adjust regular attack to use VAR mod]
+
+		WEAPON: HAND_CROSSBOW
+		output [attack VAR_REG
+			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG hit WEAPON+VAR       crit 2d(WEAPON)+VAR      ]
+			miss 0                    + [attack VAR_REG hit WEAPON+VAR+SNEAK crit 2d(WEAPON)+VAR+SNEAK]
+			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG hit WEAPON+VAR       crit 2d(WEAPON)+VAR      ]
+		] named "[LEVEL] Crossbow expert attacking twice"
+	}
+
+	\ Example combining just about everything. Let's test some builds. \
+	N_FULL_FEATS:	2
+	N_HALF_FEATS:	0
+	if N_ASI + RXASI >= N_FULL_FEATS + N_HALF_FEATS {
+		VAR:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
+		VAR_REG: [adjust regular attack to use VAR mod]
+		VAR_DIS: [preroll DIS plus VAR+PRO vs AC crit on CRIT_MIN] \ I assumed no disadvantage during optimization. Alas,,, \
+		VAR_ADV: [adjust advantage attack to use VAR mod]
+		VAR_TRI: [adjust tripleadv attack to use VAR mod]
+		VAR_REG_POW: [preroll REG plus VAR+PRO-5 vs AC crit on CRIT_MIN]
+		VAR_ADV_POW: [preroll ADV plus VAR+PRO-5 vs AC crit on CRIT_MIN]
+
+		WEAPON: HAND_CROSSBOW
+		output [attack VAR_REG
+			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG_POW hit WEAPON+VAR+POW   crit 2d(WEAPON)+VAR+POW  ]
+			miss 0                    + [attack VAR_REG     hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG_POW hit WEAPON+VAR+POW   crit 2d(WEAPON)+VAR+POW  ]
+		] named "[LEVEL] Crossbow expert attacking twice, sharpshooting if the first attack hit"
+
+		output [attack VAR_REG
+			hit  0 + [attack VAR_ADV_POW hit WEAPON+SNEAK+VAR+POW crit 2d(WEAPON+SNEAK)+VAR+POW]
+			miss 0 + [attack VAR_REG     hit WEAPON+SNEAK+VAR     crit 2d(WEAPON+SNEAK)+VAR    ]
+			crit 0 + [attack VAR_ADV_POW hit WEAPON+SNEAK+VAR+POW crit 2d(WEAPON+SNEAK)+VAR+POW]
+		] named "[LEVEL] Crossbow expert throwing net and sharpshooting if it hit"
+
+		output [attack VAR_DIS
+			hit  0 + [attack VAR_TRI hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+			miss 0 + [attack VAR_REG hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+			crit 0 + [attack VAR_TRI hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+		] named "[LEVEL] Elven accuracy crossbow expert throwing nets"
+
+		output [attack VAR_REG
+			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG hit WEAPON      +VAR crit 2d(WEAPON      )+VAR]
+			miss 0                    + [attack VAR_REG hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG hit WEAPON      +VAR crit 2d(WEAPON      )+VAR]
+		] named "[LEVEL] Elven accuracy crossbow expert attacking twice"
+	}
+}
+
+\\\ END ACTUAL BUILD TEST \\\
