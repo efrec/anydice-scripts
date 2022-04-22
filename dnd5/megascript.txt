@@ -3,16 +3,42 @@
 The Mega Script handles many more factors than most D&D rollers so you can be confident in your results.
 It is especially focused on the impact of feats, including half feats, on primary & secondary abilities.
 For an AnyDice script, this may seem unusually long and verbose. That is because it is long and verbose.
-
 Try it out: https://anydice.com/program/28638
 
-The script is divided into a few general regions.
-1. Long function declaration for lookups on game statistics, adjusted to the current level (set by [LEVEL]).
-2. Other function declarations, esp. for computing results efficiently in AnyDice.
-3. Variables for game entities needed to create conversant expressions, e.g. "ADV >= CRIT_MIN" is legible to most users.
-4. Variables for the build regimen, updated per-level, in a loop.
-5. Precomputation of results using all of the above, for efficient reuse in the below rather than recomputing results.
-6. Build definitions and output.
+The script is organized into regions:
+
+1. STATS LOOKUP FUNCTION
+   Long function declaration for lookups on game statistics at the current level (set by [LEVEL] global variable).
+
+2. ALL OTHER FUNCTIONS
+   Other function declarations, especially for computing results efficiently in AnyDice.
+
+3. GENERAL CONFIGURATION
+   Variables for game entities, also used to make expressions more conversant than mathy.
+   e.g.: "ADV >= CRIT_MIN" is more readable than "1@2d20 >= 20". The same for "DAGGER + MOD" vs "1d4 + 3".
+
+   This section is outside of the update loop, so constant values are declared here.
+   Non-constant variables may be declared here but are the exception to the rule.
+
+   Finally, the build test regimen is configured at the end of this section, potentially overriding the general configuration.
+   By default, this is just a couple of lines that update the MIN_LEVEL and MAX_LEVEL to values other than 1 and 20.
+
+4. PER-LEVEL CONFIGURATION
+   Variables for the build regimen, updated per-level, in a loop.
+   Player and monster statistics are updated to the current level (set by [LEVEL] global variable).
+   Variables that may have been overridden by a build definition in the bottom of the loop are reset, e.g. number feats taken.
+
+5. PREROLL RESULTS
+   The script maps many rolls of 20-sided dice to 3-sided dice (MISS, HIT, CRIT). I call this reduced die a "preroll".
+   Using a 3-sided die saves (very roughly) 20 - 3 = 17 operations. For N uses of a prerolled die, we use 17 * N - 20 fewer operations.
+   AnyDice has a computation timeout of 5 seconds. Prerolls are necessary to compute any considerable volume of results in one pass.
+
+   The d20 rolls are composed using all the setup and configuration so far, from sections 1 through 4.
+   The prerolls are then used in the place of d20 rolls below, in section 6, when evaluating builds.
+
+6. ACTUAL BUILD TEST
+   Build definitions and output. This is what it was all for, lads.
+   This section is populated with examples to help you get started.
 
 When using this as a tool, skip to the build definitions toward the end.
 \\\
@@ -37,8 +63,8 @@ function: stat STAT:n {
 	9 - Max spell slot, half caster
 	10 - Max spell slot, third caster
 	11 - Basic number of ASIs or Feats (ignoring Fighter, Rogue)
+	12 - Damage baseline (Warlock using EB+AB+Hex)
 
-	12 - RESERVED
 	13 - RESERVED
 	14 - RESERVED
 	15 - RESERVED
@@ -47,7 +73,6 @@ function: stat STAT:n {
 	18 - RESERVED
 	19 - RESERVED
 
-	@todo
 	20 - Total spell slot levels, full caster
 	21 - Number of spell slots, 1st level, full caster
 	22 - Number of spell slots, 2nd level, full caster
@@ -59,13 +84,13 @@ function: stat STAT:n {
 	28 - Number of spell slots, 8th level, full caster
 	29 - Number of spell slots, 9th level, full caster
 
+	@todo
 	30 - Total spell slot levels, half caster
 	31 - Number of spell slots, 1st level, half caster
 	32 - Number of spell slots, 2nd level, half caster
 	33 - Number of spell slots, 3rd level, half caster
 	34 - Number of spell slots, 4th level, half caster
 	35 - Number of spell slots, 5th level, half caster
-
 	36 - Total spell slot levels, third caster
 	37 - Number of spell slots, 1st level, third caster
 	38 - Number of spell slots, 2nd level, third caster
@@ -128,7 +153,7 @@ function: stat STAT:n {
 	240 - Paladin: Lay on Hands - Hit points per day
 	241 - Paladin: Divine Smite - Smite damage die, maximum slot
 	242 - Paladin: Improved Divine Smite - Damage die
-	260 - Ranger: Favored Foe - Damage die \\ What do people think? Include the ranger's PHB and UA features? \\
+	260 - Ranger: Favored Foe - Damage die \\ What do people think? Include PHB and UA features? \\
 	280 - Rogue: Sneak Attack - Damage die
 	300 - Sorcerer: Font of Magic - Count maximum total spell slot levels, convert all sorcery points to slots
 	301 - Sorcerer: Font of Magic - Count maximum 1st level spell slots, convert all sorcery points to slots
@@ -253,6 +278,83 @@ function: stat STAT:n {
 		if LEVEL >=  8 { result: 2 }
 		if LEVEL >=  4 { result: 1 }
 		result: 0
+	}
+	if STAT =  12 {
+		EB:		1d10		\ DPR baseline (Warlock using Eldritch Blast + Agonizing Blast + Hex) \
+		N_RAYS:	[stat 0]	\ Finally, an actual baseline. If you can't meet this value, your build is not damage-oriented. \
+		HEX:	1d6         \ A warlock can maintain this damage while concentrating on other damaging effects. \
+
+		if LEVEL <= 1 { AB: 0 } else { AB: [stat 2] }
+		if LEVEL  = 1 { result: [attack ATK_REG hit EB+HEX    crit 2d(EB+HEX)   ] }
+		if N_RAYS = 1 { result: [attack ATK_REG hit EB+HEX+AB crit 2d(EB+HEX)+AB] }
+
+		\ I imagine there's a nice way to do this. But I am not a nice man. \
+		result: [
+			attack ATK_REG
+			hit  EB+HEX+AB     + (N_RAYS >= 2) * [
+				attack ATK_REG
+				hit EB+HEX+AB      + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+				miss 0             + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+			]
+			miss 0             + (N_RAYS >= 2) * [
+				attack ATK_REG
+				hit EB+HEX+AB      + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+				miss 0             + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+HEX+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB     crit 2d(EB)+AB    ]
+					miss 0             + (N_RAYS >= 4) * [attack ATK_REG hit EB+HEX+AB crit 2d(EB+HEX)+AB]
+					crit 2d(EB+HEX)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB     crit 2d(EB)+AB    ]
+				]
+				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+			]
+			crit 2d(EB+HEX)+AB + (N_RAYS >= 2) * [
+				attack ATK_REG
+				hit EB+HEX+AB      + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+				miss 0             + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
+					attack ATK_REG
+					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
+				]
+			]
+		]
 	}
 	if STAT =  20 {
 		if LEVEL <= 0 { result: 0 } \ Total slot levels, full caster \
@@ -607,7 +709,7 @@ function: stat STAT:n {
 	if STAT = 182 {
 		if LEVEL >= 9 { result: 1 } \ Druid (non-moon) wild shape count multi-attack \
 		if LEVEL >= 6 { result: 1 } \ Note that these are EXTRA attacks. \
-		if LEVEL >= 2 { result: 1 } \ @todo: These are all kinda just, made up. Based on experience and guesses, not reality. \
+		if LEVEL >= 2 { result: 1 } \ @todo: These are all kinda just, made up. Based on guesses, not reality. \
 		result: 0
 	}
 	if STAT = 183 {
@@ -1026,30 +1128,33 @@ INT: 63
 WIS: 64
 CHA: 65
 
+\ Build Regimen \
+
+MIN_LEVEL:  3 \ You generally won't need to calculate levels 1 and 2, but do you. \
+MAX_LEVEL: 14 \ Most campaigns go up to about 11th level, but 14th is also common. \
+
 
 \\\ END GENERAL CONFIGURATION \\\
-\\\ BEGIN BUILD CONFIGURATION \\\
+\\\ BEGIN PER-LEVEL CONFIGS \\\
 
-
-MIN_LEVEL:  1
-MAX_LEVEL: 20 \ Keep in mind the likelihood of a 20th level campaign. \
 
 loop LVL over {MIN_LEVEL..MAX_LEVEL} {
 
-	\ Level Config \
-	LEVEL:	LVL
-	TIER:	[stat 0]
+	\ Update Stats for the Current Level \
+
+	\ Level Configuration \
+	LEVEL:	LVL			\ Values returned by [stat <x>] update based on the LEVEL variable. \
+	TIER:	[stat 0]	\ So, this call to [stat 0] gets the 0th stat at LEVELth level. \
 	PRO:	[stat 1]
 
-	N_ASI:				[stat 11]	\ big @todo. \
-	N_FEATS:			0			\ Unless noted otherwise. \
-	N_HALF_FEATS: 		0			\ Unless noted otherwise. \
-
-	MOD:				[stat 2]	\ Does not compensate for feats or half-feats. @todo \
+	\ Player General Stats \
+	N_ASI:				[stat 11]
+	MOD:				[stat 2]
 	SEC:				[stat 3]
-	SAVE_DC:			[stat 4]	\ Does not compensate for feats or half-feats. @todo \
-	SAVE_DC_SECONDARY:	[stat 5]	\ Does not compensate for feats or half-feats. @todo \
+	SAVE_DC:			[stat 4]
+	SAVE_DC_SECONDARY:	[stat 5]
 
+	\ Player Class Stats \
 	RAGED:	[stat 121]	\ Rage damage bonus \
 	INSPO:	[stat 140]	\ Bardic Inspiration die \
 	WILDN:	[stat 181]	\ Wild shape count extra attacks \
@@ -1069,6 +1174,16 @@ loop LVL over {MIN_LEVEL..MAX_LEVEL} {
 	PACTL:	[stat 321]	\ Pact Magic level of pact slots \
 	RECOV:	[stat 340]	\ Arcane Recovery total slot levels recoverable daily \
 
+	\ Player Subclass Stats \
+	\ These don't exist yet. \
+
+	\ Reset Player Feats \
+	N_FULL_FEATS:		0
+	N_HALF_FEATS: 		0
+
+	\ Monster Averages \
+	\ The below values are the average values of official monsters with CR = LEVEL. \
+	\ @todo: Hardier build tests should use baselines (not averages) and then compare vs CR = {LEVEL-2..LEVEL+2} (not CR = LEVEL). \
 	MONSTER_ABILITY_MOD: [stat 51]
 	MONSTER_DC: [stat 53]
 	AC: [stat 55]
@@ -1080,12 +1195,14 @@ loop LVL over {MIN_LEVEL..MAX_LEVEL} {
 	WIS_SAVE_BONUS: [stat 64]
 	CHA_SAVE_BONUS: [stat 65]
 
-	\ Precompute some outcomes. Doing it here means not doing it many thousands of times more, further below. \
-	\ But it does not work (yet) with adjustments for feats and half-feats. @todo \
+
+	\\\ END PER-LEVEL CONFIGS \\\
+	\\\ BEGIN PREROLLED RESULTS \\\
+	
 
 	ATK_REG: [preroll REG plus MOD+PRO vs AC crit on CRIT_MIN] \ Attacks using the primary ability score \
 	ATK_DIS: [preroll DIS plus MOD+PRO vs AC crit on CRIT_MIN] \ @todo: I don't actually fetch the DIS prerolls anywhere. \
-	ATK_ADV: [preroll ADV plus MOD+PRO vs AC crit on CRIT_MIN]
+	ATK_ADV: [preroll ADV plus MOD+PRO vs AC crit on CRIT_MIN] \ ex: There needs to be an "adjust disadvantage attack for NEW:n mod" \
 	ATK_TRI: [preroll TRI plus MOD+PRO vs AC crit on CRIT_MIN]
 	
 	ATK_REG_SEC: [preroll REG plus MOD+PRO vs AC crit on CRIT_MIN] \ Attacks using the secondary ability score \
@@ -1173,13 +1290,14 @@ loop LVL over {MIN_LEVEL..MAX_LEVEL} {
 	}
 
 
-	\\\ END BUILD CONFIGURATION \\\
+	\\\ END PREROLL RESULTS \\\
 	\\\ BEGIN ACTUAL BUILD TEST \\\
 
 
-	output 0 named "======================================="
+	\ Print the Damage Per Round (DPR) baseline and a pseudo line break: \
+	output [stat 12] named "[LEVEL] ==================================================="
 
-	\ Basic example \
+	\ Simple example of a build and output \
 	WEAPON: DAGGER
 	PAIRED: DAGGER
 	output [attack ATK_REG
@@ -1192,56 +1310,60 @@ loop LVL over {MIN_LEVEL..MAX_LEVEL} {
 	N_FULL_FEATS:	1
 	N_HALF_FEATS:	0
 	if N_ASI + RXASI >= N_FULL_FEATS + N_HALF_FEATS {
-		\ We replace MOD with VAR. \
-		\ We replace ATK_REG with VAR_REG. \
-		VAR:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
-		VAR_REG: [adjust regular attack to use VAR mod]
+		\ We replace MOD with ADJ. \
+		\ We replace ATK_REG with ADJ_REG. \
+		ADJ:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
+		ADJ_REG: [adjust regular attack to use ADJ mod]
 
 		WEAPON: HAND_CROSSBOW
-		output [attack VAR_REG
-			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG hit WEAPON+VAR       crit 2d(WEAPON)+VAR      ]
-			miss 0                    + [attack VAR_REG hit WEAPON+VAR+SNEAK crit 2d(WEAPON)+VAR+SNEAK]
-			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG hit WEAPON+VAR       crit 2d(WEAPON)+VAR      ]
+		output [attack ADJ_REG
+			hit  WEAPON+SNEAK+ADJ     + [attack ADJ_REG hit WEAPON+ADJ       crit 2d(WEAPON)+ADJ      ]
+			miss 0                    + [attack ADJ_REG hit WEAPON+ADJ+SNEAK crit 2d(WEAPON)+ADJ+SNEAK]
+			crit 2d(WEAPON+SNEAK)+ADJ + [attack ADJ_REG hit WEAPON+ADJ       crit 2d(WEAPON)+ADJ      ]
 		] named "[LEVEL] Crossbow expert attacking twice"
 	}
 
-	\ Example combining just about everything. Let's test some builds. \
+	\ Example combining everything at once. Let's test some builds. \
 	N_FULL_FEATS:	2
 	N_HALF_FEATS:	0
 	if N_ASI + RXASI >= N_FULL_FEATS + N_HALF_FEATS {
-		VAR:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
-		VAR_REG: [adjust regular attack to use VAR mod]
-		VAR_DIS: [preroll DIS plus VAR+PRO vs AC crit on CRIT_MIN] \ I assumed no disadvantage during optimization. Alas,,, \
-		VAR_ADV: [adjust advantage attack to use VAR mod]
-		VAR_TRI: [adjust tripleadv attack to use VAR mod]
-		VAR_REG_POW: [preroll REG plus VAR+PRO-5 vs AC crit on CRIT_MIN]
-		VAR_ADV_POW: [preroll ADV plus VAR+PRO-5 vs AC crit on CRIT_MIN]
+		ADJ:     [primary with N_FULL_FEATS full and N_HALF_FEATS half feats plus RXASI extra asi]
+		ADJ_REG: [adjust regular attack to use ADJ mod]
+		ADJ_DIS: [preroll DIS plus ADJ+PRO vs AC crit on CRIT_MIN] \ I assumed no disadvantage during optimization. Alas,,, \
+		ADJ_ADV: [adjust advantage attack to use ADJ mod]
+		ADJ_TRI: [adjust tripleadv attack to use ADJ mod]
+		ADJ_REG_POW: [preroll REG plus ADJ+PRO-5 vs AC crit on CRIT_MIN]
+		ADJ_ADV_POW: [preroll ADV plus ADJ+PRO-5 vs AC crit on CRIT_MIN]
 
 		WEAPON: HAND_CROSSBOW
-		output [attack VAR_REG
-			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG_POW hit WEAPON+VAR+POW   crit 2d(WEAPON)+VAR+POW  ]
-			miss 0                    + [attack VAR_REG     hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
-			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG_POW hit WEAPON+VAR+POW   crit 2d(WEAPON)+VAR+POW  ]
+		output [attack ADJ_REG
+			hit  WEAPON+SNEAK+ADJ     + [attack ADJ_REG_POW hit WEAPON+ADJ+POW   crit 2d(WEAPON)+ADJ+POW  ]
+			miss 0                    + [attack ADJ_REG     hit WEAPON+SNEAK+ADJ crit 2d(WEAPON+SNEAK)+ADJ]
+			crit 2d(WEAPON+SNEAK)+ADJ + [attack ADJ_REG_POW hit WEAPON+ADJ+POW   crit 2d(WEAPON)+ADJ+POW  ]
 		] named "[LEVEL] Crossbow expert attacking twice, sharpshooting if the first attack hit"
 
-		output [attack VAR_REG
-			hit  0 + [attack VAR_ADV_POW hit WEAPON+SNEAK+VAR+POW crit 2d(WEAPON+SNEAK)+VAR+POW]
-			miss 0 + [attack VAR_REG     hit WEAPON+SNEAK+VAR     crit 2d(WEAPON+SNEAK)+VAR    ]
-			crit 0 + [attack VAR_ADV_POW hit WEAPON+SNEAK+VAR+POW crit 2d(WEAPON+SNEAK)+VAR+POW]
+		output [attack ADJ_REG
+			hit  0 + [attack ADJ_ADV_POW hit WEAPON+SNEAK+ADJ+POW crit 2d(WEAPON+SNEAK)+ADJ+POW]
+			miss 0 + [attack ADJ_REG     hit WEAPON+SNEAK+ADJ     crit 2d(WEAPON+SNEAK)+ADJ    ]
+			crit 0 + [attack ADJ_ADV_POW hit WEAPON+SNEAK+ADJ+POW crit 2d(WEAPON+SNEAK)+ADJ+POW]
 		] named "[LEVEL] Crossbow expert throwing net and sharpshooting if it hit"
 
-		output [attack VAR_DIS
-			hit  0 + [attack VAR_TRI hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
-			miss 0 + [attack VAR_REG hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
-			crit 0 + [attack VAR_TRI hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
+		output [attack ADJ_DIS
+			hit  0 + [attack ADJ_TRI hit WEAPON+SNEAK+ADJ crit 2d(WEAPON+SNEAK)+ADJ]
+			miss 0 + [attack ADJ_REG hit WEAPON+SNEAK+ADJ crit 2d(WEAPON+SNEAK)+ADJ]
+			crit 0 + [attack ADJ_TRI hit WEAPON+SNEAK+ADJ crit 2d(WEAPON+SNEAK)+ADJ]
 		] named "[LEVEL] Elven accuracy crossbow expert throwing nets"
 
-		output [attack VAR_REG
-			hit  WEAPON+SNEAK+VAR     + [attack VAR_REG hit WEAPON      +VAR crit 2d(WEAPON      )+VAR]
-			miss 0                    + [attack VAR_REG hit WEAPON+SNEAK+VAR crit 2d(WEAPON+SNEAK)+VAR]
-			crit 2d(WEAPON+SNEAK)+VAR + [attack VAR_REG hit WEAPON      +VAR crit 2d(WEAPON      )+VAR]
+		output [attack ADJ_REG
+			hit  WEAPON+SNEAK+ADJ     + [attack ADJ_REG hit WEAPON      +ADJ crit 2d(WEAPON      )+ADJ]
+			miss 0                    + [attack ADJ_REG hit WEAPON+SNEAK+ADJ crit 2d(WEAPON+SNEAK)+ADJ]
+			crit 2d(WEAPON+SNEAK)+ADJ + [attack ADJ_REG hit WEAPON      +ADJ crit 2d(WEAPON      )+ADJ]
 		] named "[LEVEL] Elven accuracy crossbow expert attacking twice"
 	}
+
+
+	\\\ END ACTUAL BUILD TEST \\\
 }
 
-\\\ END ACTUAL BUILD TEST \\\
+
+\\\ END PROGRAM \\\
