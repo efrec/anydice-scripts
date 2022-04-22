@@ -282,79 +282,10 @@ function: stat STAT:n {
 	if STAT =  12 {
 		EB:		1d10		\ DPR baseline (Warlock using Eldritch Blast + Agonizing Blast + Hex) \
 		N_RAYS:	[stat 0]	\ Finally, an actual baseline. If you can't meet this value, your build is not damage-oriented. \
-		HEX:	1d6         \ A warlock can maintain this damage while concentrating on other damaging effects. \
+		HEX:	1d6         \ This does use a resource, and it does require concentration. So, grain of salt, and all. \
 
 		if LEVEL <= 1 { AB: 0 } else { AB: [stat 2] }
-		if LEVEL  = 1 { result: [attack ATK_REG hit EB+HEX    crit 2d(EB+HEX)   ] }
-		if N_RAYS = 1 { result: [attack ATK_REG hit EB+HEX+AB crit 2d(EB+HEX)+AB] }
-
-		\ I imagine there's a nice way to do this. But I am not a nice man. \
-		result: [
-			attack ATK_REG
-			hit  EB+HEX+AB     + (N_RAYS >= 2) * [
-				attack ATK_REG
-				hit EB+HEX+AB      + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-				miss 0             + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-			]
-			miss 0             + (N_RAYS >= 2) * [
-				attack ATK_REG
-				hit EB+HEX+AB      + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-				miss 0             + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+HEX+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB     crit 2d(EB)+AB    ]
-					miss 0             + (N_RAYS >= 4) * [attack ATK_REG hit EB+HEX+AB crit 2d(EB+HEX)+AB]
-					crit 2d(EB+HEX)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB     crit 2d(EB)+AB    ]
-				]
-				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-			]
-			crit 2d(EB+HEX)+AB + (N_RAYS >= 2) * [
-				attack ATK_REG
-				hit EB+HEX+AB      + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-				miss 0             + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-				crit 2d(EB+HEX)+AB + (N_RAYS >= 3) * [
-					attack ATK_REG
-					hit  EB+AB     + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					miss 0         + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-					crit 2d(EB)+AB + (N_RAYS >= 4) * [attack ATK_REG hit EB+AB crit 2d(EB)+AB]
-				]
-			]
-		]
+		result: N_RAYS d [attack ATK_REG hit EB+HEX+AB crit 2d(EB+HEX)+AB]
 	}
 	if STAT =  20 {
 		if LEVEL <= 0 { result: 0 } \ Total slot levels, full caster \
