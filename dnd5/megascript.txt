@@ -3,7 +3,7 @@
 The Mega Script handles many more factors than most D&D rollers so you can be confident in your results.
 It is especially focused on the impact of feats, including half feats, on primary & secondary abilities.
 For an AnyDice script, this may seem unusually long and verbose. That is because it is long and verbose.
-Try it out: https://anydice.com/program/28638
+Try it out: https://anydice.com/program/2e826
 
 The script is organized into regions:
 
